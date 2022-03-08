@@ -10,7 +10,9 @@ All improvements in this fork will later be contributed upstream and thiis fork 
 
 
 #### Copyright
+
 (C) 2019-2022 Calin Culianu <calin.culianu@gmail.com>
+(C) 2022 Aaron Dewes <aaron.dewes@protonmail.com>
 
 #### License:
 GPLv3. See the included `LICENSE.txt` file or [visit gnu.org and read the license](https://www.gnu.org/licenses/gpl-3.0.html).

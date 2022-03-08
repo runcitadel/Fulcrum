@@ -235,9 +235,7 @@ void BitcoinDMgr::refreshBitcoinDNetworkInfo()
                 bitcoinDInfo.relayFee = networkInfo.value("relayfee", 0.0).toDouble();
                 bitcoinDInfo.warnings = networkInfo.value("warnings", "").toString();
             } // end lock scope
-            // be sure to announce whether remote bitcoind is bitcoin core (this determines whether we use segwit or not)
-            emit bitcoinCoreDetection(res.isCore);
-            // next, be sure to set up the ping time appropriately for bchd vs bitcoind
+            // next, be sure to set up the ping time appropriately
             resetPingTimers(int(PingTimes::Normal));
             // next up, do this query
             refreshBitcoinDGenesisHash();
@@ -377,12 +375,6 @@ BitcoinDInfo BitcoinDMgr::getBitcoinDInfo() const
 {
     std::shared_lock g(bitcoinDInfoLock);
     return bitcoinDInfo;
-}
-
-bool BitcoinDMgr::isBitcoinCore() const
-{
-    std::shared_lock g(bitcoinDInfoLock);
-    return bitcoinDInfo.isCore;
 }
 
 Version BitcoinDMgr::getBitcoinDVersion() const

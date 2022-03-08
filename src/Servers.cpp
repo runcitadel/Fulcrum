@@ -1692,23 +1692,15 @@ void Server::rpc_blockchain_transaction_broadcast(Client *c, const RPC::BatchId 
                 // This logic is also used by the ElectronX implementations here:
                 // https://github.com/Electron-Cash/electrumx/blob/fbd00416d804c286eb7de856e9399efb07a2ceaf/electrumx/server/session.py#L1526
                 // https://github.com/Electron-Cash/electrumx/blob/fbd00416d804c286eb7de856e9399efb07a2ceaf/electrumx/lib/coins.py#L397
-                QString clientName, website;
-                if (isBTC) {
-                    clientName = "Electrum";
-                    website = "https://electrum.org/";
-                } else {
-                    clientName = "Electron Cash";
-                    website = "https://electroncash.org/";
-                }
                 ret = QString("<br/><br/>"
                               "Your transaction was successfully broadcast.<br/><br/>"
-                              "However, you are using a VULNERABLE version of %1.<br/>"
+                              "However, you are using a VULNERABLE version of Electrum.<br/>"
                               "Download the latest version from this web site ONLY:<br/>"
-                              "%2"
-                              "<br/><br/>").arg(clientName, website);
+                              "https://electrum.org/"
+                              "<br/><br/>");
                 logLine.clear();
                 QTextStream{&logLine, QIODevice::WriteOnly}
-                    << "Client " << c->id << " has a vulnerable " << clientName << " (" << uaVersion.toString()
+                    << "Client " << c->id << " has a vulnerable Electrum (" << uaVersion.toString()
                     << "); upgrade warning HTML sent to client";
                 logFilter->broadcast(true, logLine, logLine);
             }

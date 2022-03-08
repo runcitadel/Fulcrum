@@ -112,9 +112,6 @@ public:
     /// in the db. See also: Storage::genesisHash().
     BlockHash getBitcoinDGenesisHash() const;
 
-    /// Thread-safe.  Convenient method to avoid an extra copy. Returns getBitcoinDInfo().isCore
-    bool isBitcoinCore() const;
-
     /// Thread-safe.  Convenient method to avoid an extra copy. Returns getBitcoinDInfo().version
     Version getBitcoinDVersion() const;
 
@@ -127,10 +124,6 @@ signals:
     /// emitted if bitcoind is telling us it's still warming up (RPC error code -28). The actual warmup message is
     /// the argument.
     void inWarmUp(const QString &);
-
-    /// Emitted as soon as we read the bitcoind subversion. If it starts with /Satoshi:.., we emit this
-    /// with true, Otherwise, we emit it with false.
-    void bitcoinCoreDetection(bool);
 
     /// Emitted whenever the BitcoinDZmqNotifications change (this is also emitted the first time we retrieve them
     /// via getzmqnotifications). Note: this is never emitted if we are compiled without zmq support.

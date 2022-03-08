@@ -112,10 +112,6 @@ protected slots:
     /// the supplied block was the next one by height).
     void on_putBlock(CtlTask *, PreProcessedBlockPtr);
 
-    /// Slot for the BitcoinDMgr::bitcoinCoreDetection. This is compared to coinIsBTC and if there is a mismatch there,
-    /// we may end up aborting the app and logging an error in this slot.
-    void on_bitcoinCoreDetection(bool); //< NB: Connected via DirectConnection an may run in the BitcoinDMgr thread!
-
 private:
     friend class CtlTask;
     /// \brief newTask - Create a specific task using this template factory function. The task will be auto-started the

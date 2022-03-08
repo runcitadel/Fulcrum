@@ -15,7 +15,7 @@ namespace bitcoin {
 
 // added by Calin
 namespace {
-std::string mutableCurrencyUnit = "BCH";
+std::string mutableCurrencyUnit = "BTC";
 std::shared_mutex currencyUnitMut;
 }
 void SetCurrencyUnit(const std::string &unit) {

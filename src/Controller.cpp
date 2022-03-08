@@ -108,8 +108,6 @@ void Controller::startup()
             callOnTimerSoon(msgPeriod, waitTimer, []{ Log("Waiting for bitcoind..."); return true; }, false, Qt::TimerType::VeryCoarseTimer);
         };
         waitForBitcoinD();
-        conns += connect(bitcoindmgr.get(), &BitcoinDMgr::bitcoinCoreDetection, this, &Controller::on_bitcoinCoreDetection,
-                         /* NOTE --> */ Qt::DirectConnection);
         conns += connect(bitcoindmgr.get(), &BitcoinDMgr::allConnectionsLost, this, waitForBitcoinD);
         conns += connect(bitcoindmgr.get(), &BitcoinDMgr::allConnectionsLost, this, &Controller::zmqHashBlockStop); // stop zmq unconditionally
         conns += connect(bitcoindmgr.get(), &BitcoinDMgr::gotFirstGoodConnection, this, [this](quint64 id) {
@@ -268,27 +266,6 @@ void Controller::startup()
     }
 
     start();  // start our thread
-}
-
-void Controller::on_bitcoinCoreDetection(bool iscore)
-{
-    const auto ourtype = coinType.load(std::memory_order_relaxed);
-    const auto detectedtype = !iscore ? BTC::Coin::BCH : BTC::Coin::BTC;
-    if (ourtype == BTC::Coin::Unknown) {
-        // We had no coin set in DB, but we just detected the coin, set it now and return.
-        // This is the common case with no misconfiguration.
-        coinType = detectedtype;
-        const auto coinName = BTC::coinToName(detectedtype);
-        storage->setCoin(coinName); // thread-safe call to storage, ok to do here.
-        bitcoin::SetCurrencyUnit(coinName.toStdString());
-        return;
-    }
-    if (ourtype != detectedtype) {
-        // defensive programming -- should never be reached. This is here in case we
-        // add new coin types yet we forget to update this code.
-        Fatal() << "INTERNAL ERROR: Unexpected coin combination: ourtype=" << BTC::coinToName(ourtype)
-                << " detectedtype=" <<  BTC::coinToName(detectedtype) << " -- FIXME!";
-    }
 }
 
 void Controller::cleanup()

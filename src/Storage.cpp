@@ -3976,7 +3976,7 @@ namespace {
                         } else {
                             // Older db's pre-1.3.0 lacked this field -- but now we interpret missing data here as
                             // "BCH" (since all older db's were always BCH only).
-                            m.coin = BTC::coinToName(BTC::Coin::BCH);
+                            m.coin = BTC::coinToName(BTC::Coin::BTC);
                             Debug() << "Missing coin info from Meta table, defaulting coin to: \"" << m.coin << "\"";
                         }
                     }

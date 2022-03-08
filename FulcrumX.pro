@@ -1,6 +1,7 @@
 #
-# Fulcrum - A fast & nimble SPV Server for Bitcoin Cash
+# FulcrumX - A fast & nimble SPV Server for Bitcoin
 # Copyright (C) 2019-2022 Calin A. Culianu <calin.culianu@gmail.com>
+# Copyright (C) 2022 Aaron Dewes <aaron.dewes@protonmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +36,7 @@ CONFIG += c++17 console warn_on
 CONFIG -= app_bundle
 
 versionAtMost(QT_VERSION, 5.12.4) {
-    error("Fulcrum requires Qt 5.12.5 (or later) or Qt 5.13.1 (or later) to be successfully built without errors.  Please use Qt 5.12.5+ or Qt 5.13.1+ to build this codebase.")
+    error("FulcrumX requires Qt 5.12.5 (or later) or Qt 5.13.1 (or later) to be successfully built without errors.  Please use Qt 5.12.5+ or Qt 5.13.1+ to build this codebase.")
 }
 
 QMAKE_CXXFLAGS_RELEASE += -DNDEBUG
@@ -205,7 +206,7 @@ contains(CONFIG, config_endian_big) {
         #   - Build with this command:
         #         mingw32-make -j4 V=1 rocksdb  <-- will build static lib only
         #   The generated librocksdb.a will be in the build/ directory you are currently in, ready to be put into the
-        #   Fulcrum directory staticlibs/rocksdb/bin/win64.
+        #   FulcrumX directory staticlibs/rocksdb/bin/win64.
         macx {
             LIBS += -L$$PWD/staticlibs/rocksdb/bin/osx
         }

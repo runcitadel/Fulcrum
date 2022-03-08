@@ -31,7 +31,7 @@ namespace ServerMisc
     extern const Version MinProtocolVersion, MaxProtocolVersion;
 
     extern const QString AppVersion,  ///< in string form suitable for sending in protocol or banner e.g. "1.0"
-                         AppSubVersion; ///< e.g. "Fulcrum 1.0"
+                         AppSubVersion; ///< e.g. "FulcrumX 1.0"
 
     /// The amount of time we wait before initiating auto-kick when the globalSubsLimitReached signal has been asserted by a Server instance.
     inline constexpr double kMaxSubsAutoKickDelaySecs = 0.25;

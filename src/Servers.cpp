@@ -2702,7 +2702,7 @@ namespace {
     void bannerfile()
     {
         const QByteArray banner(R"EOF(
-            Welcome to a Fulcrum server.
+            Welcome to a FulcrumX server.
 
             This is a test banner.
 
@@ -2731,7 +2731,7 @@ namespace {
                                                                     "/a daemon subversion nested $SERVER_VERSION/");
         const auto serverVersion = ServerMisc::AppVersion, serverSubVersion = ServerMisc::AppSubVersion;
         const auto expected1 = QString::fromUtf8(R"EOF(
-            Welcome to a Fulcrum server.
+            Welcome to a FulcrumX server.
 
             This is a test banner.
 

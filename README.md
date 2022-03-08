@@ -1,10 +1,15 @@
-# Fulcrum
+# FulcrumX
 
-[![Travis CI Build](https://img.shields.io/travis/cculianu/Fulcrum/master)](https://travis-ci.org/cculianu/Fulcrum)
-[![Docker Build](https://github.com/cculianu/Fulcrum/actions/workflows/publish.yml/badge.svg)](https://github.com/cculianu/Fulcrum/actions/workflows/publish.yml)
-[![Copr build status](https://copr.fedorainfracloud.org/coprs/jonny/BitcoinCash/package/fulcrum/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/jonny/BitcoinCash/package/fulcrum/)
+A fast & nimble SPV server for Bitcoin.
 
-A fast & nimble SPV server for Bitcoin Cash & Bitcoin BTC.
+This is a fork of the original Fulcrum focused on only keeping the original Bitcoin.
+
+This has the following advantages over a version with Bitcoin Cash support:
+
+- More easily auditable code
+- Smaller binaries
+
+All other improvements in FulcrumX will be contributed upstream.
 
 #### Copyright
 (C) 2019-2022 Calin Culianu <calin.culianu@gmail.com>

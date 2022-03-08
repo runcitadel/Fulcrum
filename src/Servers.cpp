@@ -650,7 +650,7 @@ void ServerBase::applyMaxBufferToAllClients(int newMax)
         return;
     newMax = Options::clampMaxBufferSetting(newMax);
     int ctr = 0;
-    for (auto * client : clientsById) {
+    for (auto * client : qAsConst(clientsById)) {
         client->setMaxBuffer(newMax);
         ++ctr;
     }

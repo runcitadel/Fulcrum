@@ -260,7 +260,7 @@ void App::startup()
             const auto num = options->statsInterfaces.count();
             Log() << "Stats HTTP: starting " << num << " " << Util::Pluralize("server", num) << " ...";
             // start 'stats' http servers, if any
-            for (const auto & i : options->statsInterfaces)
+            for (const auto & i : qAsConst(options->statsInterfaces))
                 start_httpServer(i); // may throw
         }
 
@@ -276,7 +276,7 @@ void App::cleanup()
     cleanup_WaitForThreadPoolWorkers();
     if (!httpServers.isEmpty()) {
         Log("Stopping Stats HTTP Servers ...");
-        for (auto h : httpServers) { h->stop(); }
+        for (const auto &h : qAsConst(httpServers)) { h->stop(); }
         httpServers.clear(); // deletes shared pointers
     }
     if (controller) { Log("Stopping Controller ... "); controller->cleanup(); controller.reset(); }
@@ -577,7 +577,7 @@ void App::parseArgs()
                 Log() << "Running all " << vals.count() << " tests ...";
             }
             // process tests and exit if we take this branch
-            for (const auto & tname : vals) {
+            for (const auto & tname : qAsConst(vals)) {
                 auto it = registeredTests->find(tname);
                 if (it == registeredTests->end())
                     throw BadArgs(QString("No such test: %1").arg(tname));
@@ -595,7 +595,7 @@ void App::parseArgs()
                 Log() << "Running all " << vals.count() << " benchmarks ...";
             }
             // process benches and exit if we take this branch
-            for (const auto & tname : vals) {
+            for (const auto & tname : qAsConst(vals)) {
                 auto it = registeredBenches->find(tname);
                 if (it == registeredBenches->end())
                     throw BadArgs(QString("No such bench: %1").arg(tname));
@@ -630,7 +630,7 @@ void App::parseArgs()
     }
 
     // first warn user about dupes
-    for (const auto & opt : allOptions) {
+    for (const auto & opt : qAsConst(allOptions)) {
         static const auto DupeMsg = [](const QString &arg) {
             Log() << "'" << arg << "' specified both via the CLI and the configuration file. The CLI arg will take precedence.";
         };
@@ -854,7 +854,7 @@ void App::parseArgs()
                                               ? conf.values("admin")
                                               : parser.values("a"), true);
     // warn user if any of the admin rpc services are on non-loopback
-    for (const auto &iface : options->adminInterfaces) {
+    for (const auto &iface : qAsConst(options->adminInterfaces)) {
         if (!iface.first.isLoopback()) {
             // print the warning later when logger is up
             Util::AsyncOnObject(this, [iface]{

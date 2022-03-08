@@ -162,18 +162,13 @@ namespace BTC
             // Note that bchd has altername names for these (see nameNetMap below).
             { MainNet, "main"},
             { TestNet, "test"},
-            { TestNet4, "test4"},
-            { ScaleNet, "scale"},
             { RegTestNet, "regtest"},
         }};
         const QMap<QString, Net> nameNetMap = {{
             {"main",     MainNet},     // BCHN, BU, ABC
             {"mainnet",  MainNet},     // bchd
             {"test",     TestNet},     // BCHN, BU, ABC
-            {"test4",    TestNet4},    // BCHN, BU
-            {"scale",    ScaleNet},    // BCHN, BU
             {"testnet3", TestNet},     // bchd
-            {"testnet4", TestNet4},    // possible future bchd
             {"regtest",  RegTestNet},  // BCHN, BU, ABC, bchd
         }};
         const QString invalidNetName = "invalid";
@@ -198,7 +193,6 @@ namespace BTC
         return ret;
     }
     Coin coinFromName(const QString &s) {
-        if (s == coinNameBCH) return Coin::BCH;
         if (s == coinNameBTC) return Coin::BTC;
         return Coin::Unknown;
     }

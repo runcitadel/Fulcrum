@@ -1719,7 +1719,6 @@ public:
 Storage::Storage(const std::shared_ptr<const Options> & options_)
     : Mgr(nullptr), options(options_),
       subsmgr(new ScriptHashSubsMgr(options, this)),
-      dspsubsmgr(new DSProofSubsMgr(options, this)),
       txsubsmgr(new TransactionSubsMgr(options, this)),
       p(std::make_unique<Pvt>(options->txHashCacheBytes))
 {
@@ -1748,11 +1747,10 @@ void Storage::startup()
 {
     Log() << "Loading database ...";
 
-    if (UNLIKELY(!subsmgr || !options || !dspsubsmgr || !txsubsmgr))
-        throw BadArgs("Storage instance constructed with nullptr for `options` and/or `subsmgr` and/or `dspsubsmgr` and/or `txsubsmgr` -- FIXME!");
+    if (UNLIKELY(!subsmgr || !options || !txsubsmgr))
+        throw BadArgs("Storage instance constructed with nullptr for `options` and/or `subsmgr` and/or `txsubsmgr` -- FIXME!");
 
     subsmgr->startup(); // trivial, always succeeds if constructed correctly
-    dspsubsmgr->startup(); // trivial, always succeeds if constructed correctly
     txsubsmgr->startup(); // trivial, always succeeds if constructed correctly
 
     {
@@ -1952,7 +1950,6 @@ void Storage::cleanup()
     stop(); // joins our thread
     if (p->blocksWorker) p->blocksWorker.reset(); // stop the co-task
     if (txsubsmgr) txsubsmgr->cleanup();
-    if (dspsubsmgr) dspsubsmgr->cleanup();
     if (subsmgr) subsmgr->cleanup();
     gentlyCloseAllDBs();
     // TODO: unsaved/"dirty state" detection here -- and forced save, if needed.
@@ -2879,12 +2876,9 @@ void Storage::addBlock(PreProcessedBlockPtr ppb, bool saveUndo, unsigned nReserv
                 Debug d;
                 d << "addBlock: removed " << diff << " txs from mempool involving "
                   << affected.size() << " addresses";
-                if (res.dspRmCt || res.dspTxRmCt)
-                    d << " (also removed dsps: " << res.dspRmCt << ", dspTxs: " << res.dspTxRmCt << ")";
                 d << " in " << QString::number(res.elapsedMsec, 'f', 3) << " msec";
             }
             notify->scriptHashesAffected.merge(std::move(affected));
-            notify->dspTxsAffected.merge(std::move(res.dspTxsAffected));
             // ^^ notify->txidsAffected is updated in the above loop
         }
 
@@ -3178,8 +3172,6 @@ void Storage::addBlock(PreProcessedBlockPtr ppb, bool saveUndo, unsigned nReserv
     if (notify) {
         if (subsmgr && !notify->scriptHashesAffected.empty())
             subsmgr->enqueueNotifications(std::move(notify->scriptHashesAffected));
-        if (dspsubsmgr && !notify->dspTxsAffected.empty())
-            dspsubsmgr->enqueueNotifications(std::move(notify->dspTxsAffected));
         if (txsubsmgr && !notify->txidsAffected.empty())
             txsubsmgr->enqueueNotifications(std::move(notify->txidsAffected));
     }
@@ -3192,7 +3184,7 @@ BlockHeight Storage::undoLatestBlock(bool notifySubs)
     using NotifySet = std::unordered_set<HashX, HashHasher>;
     struct NotifyData {
         using NotifySet = std::unordered_set<HashX, HashHasher>;
-        NotifySet scriptHashesAffected, dspTxsAffected, txidsAffected;
+        NotifySet scriptHashesAffected, txidsAffected;
     };
     std::unique_ptr<NotifyData> notify;
 
@@ -3227,9 +3219,6 @@ BlockHeight Storage::undoLatestBlock(bool notifySubs)
         if (notify) {
             // mark ALL of mempool for notify so we can detect drops that weren't in block but also disappeared from mempool properly
             notify->scriptHashesAffected.merge(Util::keySet<NotifySet>(p->mempool.hashXTxs));
-            if (!p->mempool.dsps.empty())
-                // since we will be clearing, just flag all in-mempool dspTxs as affected
-                notify->dspTxsAffected.merge(Util::keySet<NotifySet>(p->mempool.dsps.getTxDspsMap()));
             notify->txidsAffected.merge(Util::keySet<NotifySet>(p->mempool.txs)); // for txSubsMgr
         }
         p->mempool.clear(); // make sure mempool is clean (see note above as to why)
@@ -3379,8 +3368,6 @@ BlockHeight Storage::undoLatestBlock(bool notifySubs)
     if (notify) {
         if (subsmgr && !notify->scriptHashesAffected.empty())
             subsmgr->enqueueNotifications(std::move(notify->scriptHashesAffected));
-        if (dspsubsmgr && !notify->dspTxsAffected.empty())
-            dspsubsmgr->enqueueNotifications(std::move(notify->dspTxsAffected));
         if (txsubsmgr && !notify->txidsAffected.empty())
             txsubsmgr->enqueueNotifications(std::move(notify->txidsAffected));
     }

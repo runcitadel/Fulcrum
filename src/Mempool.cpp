@@ -28,7 +28,6 @@
 void Mempool::clear() {
     txs.clear();
     hashXTxs.clear();
-    dsps.clear(); // <-- this always frees capacity
     txs.rehash(0); // this should free previous capacity
     hashXTxs.rehash(0);
 }
@@ -117,14 +116,11 @@ auto Mempool::addNewTxs(ScriptHashesAffectedSet & scriptHashesAffected,
         // . <-- at this point the .txos vec is built, with everything isValid() except for the OP_RETURN outs, which are all !isValid()
     }
 
-    std::unordered_map<TxHash, TxHashSet, HashHasher> newTxsNewParents; // only used if !dsps.empty(). Contains all in-mempool parents of txs from txsNew that are themselves in txsNew
-
     // next, do new inputs for all tx's, debiting/crediting either a mempool tx or querying db for the relevant utxo
     for (auto & [hash, pair] : txsNew) {
         auto & [tx, ctx] = pair;
         assert(hash == tx->hash);
         IONum inNum = 0;
-        TxHashSet seenParents; // DSP handling, otherwise unused if no dsp
         for (const auto & in : ctx->vin) {
             const IONum prevN = IONum(in.prevout.GetN());
             const TxHash prevTxId = BTC::Hash2ByteArrayRev(in.prevout.GetTxId());
@@ -149,41 +145,6 @@ auto Mempool::addNewTxs(ScriptHashesAffectedSet & scriptHashesAffected,
                                         .arg(prevTXO.toString(), QString(sh.toHex()), QString(tx->hash.toHex())));
                 prevHashXIt->second.utxo.erase(prevN); // remove this spend from utxo set for prevTx in mempool
                 if (TRACE) Debug() << hash.toHex() << " unconfirmed spend: " << prevTXO.toString() << " " << prevInfo.amount.ToString().c_str();
-
-                // DSP handling (BCH only)
-                if (!dsps.empty() && !seenParents.count(prevTxId)) {
-                    if (!txsNew.count(prevTxId)) { // parent was an old in-mempool tx, check if it had dsps and assign them to this child
-                        if (const auto *dspHashes = dsps.dspHashesForTx(prevTxId)) {
-                            for (const auto &dspHash : *dspHashes) {
-                                if (dsps.addTx(dspHash, hash)) {
-                                    ret.dspTxsAffected.insert(hash);
-                                    DebugM(__func__, ": added tx ", hash.toHex(), " to descendants for dsp ", dspHash.toHex());
-                                } else if (Debug::isEnabled() || inNum == 0) {
-                                    // This may happen rarely. Even though this is a new txid, if there is a diamond
-                                    // pattern with the prevTxId's, then this tx may have already been added as a
-                                    // descendant tx for this dspHash by one of our other inputs.
-                                    //
-                                    // Note that an invariant is maintained in SynchDSPsTask that only "known" txids
-                                    // are ever added, so this branch *must* be the result of a different previous
-                                    // input having already added us in the enclosing for() loop. (We warn if that
-                                    // is not the case as it would indicate a bug in this code.)
-                                    QString msg("%1: dsp addTx returned false for dspHash: %2, txid: %3.");
-                                    msg = msg.arg(__func__, dspHash.toHex(), hash.toHex());
-                                    if (LIKELY(inNum > 0))
-                                        Debug() << msg;
-                                    else
-                                        Warning() << msg << " This should never happen! FIXME!";
-                                }
-                            }
-                        }
-                    } else {
-                        // parent was a tx in the new set, so we must process further at end of function to figure
-                        // out if this childtx has associated dsps...
-                        newTxsNewParents[hash].insert(prevTxId);
-                    }
-                    seenParents.insert(prevTxId);
-                }
-                // /DSP handling
             } else {
                 // prev is a confirmed tx
                 const auto optTXOInfo = getTXOInfo(prevTXO); // this may also throw on low-level db error
@@ -233,45 +194,6 @@ auto Mempool::addNewTxs(ScriptHashesAffectedSet & scriptHashesAffected,
         // we sometimes retry this task when we detect mempool drops, with the scriptHasesAffected set containing
         // the dropped address hashes.  This is why the if conditional above exists.
     }
-
-    // DSP handling (BCH only)
-    if (!dsps.empty() && !newTxsNewParents.empty() && !ret.dspTxsAffected.empty()) {
-        Tic t0;
-        unsigned addCt, iters = 0, innerIters = 0, addsTotal = 0;
-        do {
-            // Keep looping and adding dsp<->txid associations (this keeps expanding the dsp->descendant sets for each
-            // dsp) until nothing new is added, in which case we are done.
-            //
-            // This loop is guaranteed to terminate but only if DSPs::addTx returns an accurate bool about whether an
-            // insertion took place or not (it currently does). That invariant needs to be maintained.  A note was also
-            // added to DSPs::addTx to warn of this.
-            addCt = 0;
-            for (const auto & [hash, parentSet] : newTxsNewParents) {
-                ++innerIters;
-                for (const auto & prevTxId : parentSet) {
-                    ++innerIters;
-                    if (const auto *dspHashes = dsps.dspHashesForTx(prevTxId)) {
-                        for (const auto &dspHash : *dspHashes) {
-                            ++innerIters;
-                            if (dsps.addTx(dspHash, hash)) {
-                                ++addCt;
-                                ++addsTotal;
-                                ret.dspTxsAffected.insert(hash);
-                                DebugM(__func__, ": added tx ", hash.toHex(), " to descendants for dsp ", dspHash.toHex());
-                            }
-                        }
-                    }
-                }
-            }
-            ++iters;
-        } while (addCt);
-        DebugM(__func__, ": (unconf. parent chain) dspTx adds: ", addsTotal, ", iters: ", iters, ", innerIters: ",
-               innerIters, ", elapsed: ", t0.msecStr(), " msec");
-    }
-    if (!ret.dspTxsAffected.empty())
-        // this grows the set to encompass all txids now linked by common dsproofs
-        ret.dspTxsAffected = dsps.txsLinkedToTxs(ret.dspTxsAffected);
-    // /DSP handling
 
     ret.newSize = this->txs.size();
     ret.newNumAddresses = this->hashXTxs.size();
@@ -418,32 +340,6 @@ auto Mempool::dropTxs(ScriptHashesAffectedSet & scriptHashesAffectedOut, TxHashS
     // -- note this helper function doesn't look at `txs` so it's fine that we removed already in the loop above.
     rmTxsInHashXTxs(txids, scriptHashesAffected, TRACE);
 
-    // next, remove txids from dsproof data structure (BCH only)
-    if (!dsps.empty()) { // fast path for common case of no dsproofs in most mempools, or for BTC mempools where the dsproof feature does not exist
-        const Tic trm;
-        const auto b4 = dsps.size(), txb4 = dsps.numTxDspLinks();
-        TxHashSet txids2rm;
-        for (const auto & txid : txids) {
-            if (dsps.dspHashesForTx(txid)) // <-- this is O(1) fast lookup by txid
-                txids2rm.insert(txid); // enqueue for removal in next loop below (must do this after growing the dsps.dspHashesForTx set)
-        }
-        if (!txids2rm.empty()) {
-            // tell caller about all the dsps that are linked and may have lost descendants (for notifications)
-            ret.dspTxsAffected = dsps.txsLinkedToTxs(txids2rm);
-            // do the rm now
-            for (const auto & txid : txids2rm) {
-                dsps.rmTx(txid);
-                if (dsps.empty()) break; // short circuit loop end in case we emptied it out
-            }
-        }
-        const auto after = dsps.size(), txafter = dsps.numTxDspLinks();
-        ret.dspRmCt = b4 > after ? b4 - after : 0;
-        ret.dspTxRmCt = txb4 > txafter ? txb4 - txafter : 0;
-        if (ret.dspTxRmCt || ret.dspRmCt)
-            DebugM("dropTxs: removed ", ret.dspTxRmCt, " dsproof <-> tx associations (", ret.dspRmCt, " dsps) in ",
-                   trm.msecStr(), " msec");
-    }
-
     // finally, update scriptHashesAffectedOut
     scriptHashesAffectedOut.merge(std::move(scriptHashesAffected));
 
@@ -456,8 +352,6 @@ auto Mempool::dropTxs(ScriptHashesAffectedSet & scriptHashesAffectedOut, TxHashS
             txs.rehash(0); // shrink to fit
         if (hashXTxs.load_factor() <= *rehashMaxLoadFactor)
             hashXTxs.rehash(0);  // shrink to fit
-        if (dsps.load_factor() <= *rehashMaxLoadFactor)
-            dsps.shrink_to_fit();
     }
     ret.elapsedMsec = t0.msec<decltype(ret.elapsedMsec)>();
     return ret;
@@ -547,9 +441,6 @@ auto Mempool::confirmedInBlock(ScriptHashesAffectedSet & scriptHashesAffectedOut
     hashXTxsEntriesNeedingSort.emplace();
     ret.oldSize = this->txs.size();
     ret.oldNumAddresses = this->hashXTxs.size();
-    const std::size_t dspCtBefore = dsps.size();
-    const std::size_t dspTxCtBefore = dsps.numTxDspLinks();
-    TxHashSet dspTxids;
 
     // iterate through all txs in mempool
     for (auto itTxs = txs.begin(); itTxs != txs.end(); /* may delete during iteration, see below */) {
@@ -559,12 +450,6 @@ auto Mempool::confirmedInBlock(ScriptHashesAffectedSet & scriptHashesAffectedOut
             // this txid is to be removed from mempool, tally its scripthashes as affected by the removal
             for (const auto & [sh, xx] : tx->hashXs)
                 scriptHashesAffected.insert(sh);
-            if (dsps.dspHashesForTx(txid)) { // <-- this is O(1) fast lookup by txid
-                // add to dspTxids so we can call dsps.rmTx() on this txid after this loop finishes -- we must do that
-                // at the end after this loop is done, so that we can get an aggregate set of dspTxsAffected
-                // from the list of dspTxids we plan on removing, before we remove them.
-                dspTxids.insert(txid);
-            }
             // and erase NOW!
             itTxs = txs.erase(itTxs); // in this branch: removed, take next it and continue
             continue;
@@ -632,13 +517,6 @@ auto Mempool::confirmedInBlock(ScriptHashesAffectedSet & scriptHashesAffectedOut
     // now, update hashXTxs as well
     rmTxsInHashXTxs(txidMap, scriptHashesAffected, TRACE, hashXTxsEntriesNeedingSort);
 
-    // now, do dsps.rmTx for any txids that we removed that happened to have dsps associated (BCH only)
-    if (!dspTxids.empty()) {
-        ret.dspTxsAffected = dsps.txsLinkedToTxs(dspTxids);
-        for (const auto &txid : dspTxids)
-            dsps.rmTx(txid); // may end up deleting dspHashes as well if the primary txid goes away
-    }
-
     // finally, update scriptHashesAffectedOut
     scriptHashesAffectedOut.merge(std::move(scriptHashesAffected));
 
@@ -651,13 +529,7 @@ auto Mempool::confirmedInBlock(ScriptHashesAffectedSet & scriptHashesAffectedOut
             txs.rehash(0); // shrink to fit
         if (hashXTxs.load_factor() <= *rehashMaxLoadFactor)
             hashXTxs.rehash(0);  // shrink to fit
-        if (dsps.load_factor() <= *rehashMaxLoadFactor)
-            dsps.shrink_to_fit();
     }
-    if (const auto dspCtAfter = dsps.size(); dspCtBefore > dspCtAfter)
-        ret.dspRmCt = dspCtBefore - dspCtAfter;
-    if (const auto dspTxCtAfter = dsps.numTxDspLinks(); dspTxCtBefore > dspTxCtAfter)
-        ret.dspTxRmCt = dspTxCtBefore - dspTxCtAfter;
     ret.elapsedMsec = t0.msec<decltype(ret.elapsedMsec)>();
     return ret;
 }
@@ -753,12 +625,6 @@ QVariantMap Mempool::dump() const
     mp["hashXTxs (BucketLargest)"] = largestBucket;
     mp["hashXTxs (BucketMedian)"] = medianBucket;
     mp["hashXTxs (BucketMedianNonzero)"] = medianNonzero;
-
-    QVariantMap dm;
-    for (const auto & [hash, dsp] : dsps.getAll())
-        dm[hash.toHex()] = dsp.toVarMap();
-    mp["dsps"] = dm;
-
     return mp;
 }
 
@@ -829,10 +695,6 @@ bool Mempool::deepCompareEqual(const Mempool &o, QString *estr) const
             }
         }
         // otherwise equal so far...
-    }
-    if (dsps != o.dsps) {
-        if (estr) *estr = "DSPs members differ";
-        return false;
     }
     // couldn't find an inequality, return true
     return true;

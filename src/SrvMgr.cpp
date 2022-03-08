@@ -490,7 +490,6 @@ void SrvMgr::globalSubsLimitReached()
                 DebugM("Requesting zombie sub removal in ", when, " msec ...");
                 // we do it with a delay to give the kick code time to run.
                 emit storage->subs()->requestRemoveZombiesSoon(when);
-                emit storage->dspSubs()->requestRemoveZombiesSoon(when);
                 emit storage->txSubs()->requestRemoveZombiesSoon(when);
             }
         };
@@ -529,5 +528,3 @@ void SrvMgr::globalSubsLimitReached()
     });
 }
 
-/// Thread-Safe. Returns whether bitcoind currently probes as having the dsproof RPC.
-bool SrvMgr::hasDSProofRPC() const { return bitcoindmgr && bitcoindmgr->hasDSProofRPC(); }

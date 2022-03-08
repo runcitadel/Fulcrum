@@ -321,7 +321,7 @@ public:
     /// which also needs a features dict when *it* calls add_peer on peer servers.
     /// NOTE: Be sure to only ever call this function from the same thread as the AbstractConnection (first arg) instance!
     static QVariantMap makeFeaturesDictForConnection(AbstractConnection *, const QByteArray &genesisHash,
-                                                     const Options & options, bool hasDSProofRPC);
+                                                     const Options & options);
 
     virtual QString prettyName() const override;
 
@@ -380,11 +380,6 @@ private:
     void rpc_blockchain_transaction_id_from_pos(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
     void rpc_blockchain_transaction_subscribe(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
     void rpc_blockchain_transaction_unsubscribe(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    // transaction.dsproof
-    void rpc_blockchain_transaction_dsproof_get(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    void rpc_blockchain_transaction_dsproof_list(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    void rpc_blockchain_transaction_dsproof_subscribe(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    void rpc_blockchain_transaction_dsproof_unsubscribe(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
     /* / */
     // utxo
     void rpc_blockchain_utxo_get_info(Client *, RPC::BatchId, const RPC::Message &); // fully implemented

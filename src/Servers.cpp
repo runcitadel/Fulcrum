@@ -1027,7 +1027,7 @@ void Server::rpc_server_donation_address(Client *c, const RPC::BatchId batchId, 
     emit c->sendResult(batchId, m.id, transformDefaultDonationAddressToBTCOrBCH(*options, isBTC));
 }
 /* static */
-QVariantMap Server::makeFeaturesDictForConnection(AbstractConnection *c, const QByteArray &genesisHash, const Options &opts, bool dsproof)
+QVariantMap Server::makeFeaturesDictForConnection(AbstractConnection *c, const QByteArray &genesisHash, const Options &opts)
 {
     QVariantMap r;
     if (!c) {
@@ -1041,7 +1041,6 @@ QVariantMap Server::makeFeaturesDictForConnection(AbstractConnection *c, const Q
     r["protocol_min"] = ServerMisc::MinProtocolVersion.toString();
     r["protocol_max"] = ServerMisc::MaxProtocolVersion.toString();
     r["hash_function"] = ServerMisc::HashFunction;
-    r["dsproof"] = dsproof;
 
     QVariantMap hmap, hmapTor;
     if (opts.publicTcp.has_value())
@@ -1087,7 +1086,7 @@ QVariantMap Server::makeFeaturesDictForConnection(AbstractConnection *c, const Q
 }
 void Server::rpc_server_features(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
 {
-    emit c->sendResult(batchId, m.id, makeFeaturesDictForConnection(c, storage->genesisHash(), *options, bitcoindmgr->hasDSProofRPC()));
+    emit c->sendResult(batchId, m.id, makeFeaturesDictForConnection(c, storage->genesisHash(), *options));
 }
 void Server::rpc_server_peers_subscribe(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
 {
@@ -1283,9 +1282,7 @@ void Server::rpc_blockchain_estimatefee(Client *c, const RPC::BatchId batchId, c
         throw RPCError(QString("%1 parameter should be a single non-negative integer").arg(m.method));
 
     QVariantList params;
-    // Flowee, BU, early ABC, bchd have a 1-arg estimate fee, newer ABC & BCHN -> 0 arg
-    if (!bitcoindmgr->isZeroArgEstimateFee())
-        params.push_back(unsigned(n));
+    params.push_back(unsigned(n));
 
     if (bitcoindmgr->isBitcoinCore() && bitcoindmgr->getBitcoinDVersion() >= Version{0,17,0}) {
         // Bitcoin Core removed the "estimatefee" RPC method entirely in version 0.17.0, in favor of "estimatesmartfee"
@@ -1923,58 +1920,6 @@ void Server::rpc_blockchain_transaction_unsubscribe(Client *c, const RPC::BatchI
     const auto txid = parseFirstHashParamCommon(m, "Invalid tx hash");
     impl_generic_unsubscribe(storage->txSubs(), c, batchId, m, txid);
 }
-// DSPROOF
-void Server::rpc_blockchain_transaction_dsproof_get(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    if (isBTC || !bitcoindmgr->hasDSProofRPC())
-        throw RPCError("This server lacks dsproof support", RPC::ErrorCodes::Code_MethodNotFound);
-    const auto dspid_or_txid = parseFirstHashParamCommon(m, "Invalid dsp hash or tx hash");
-    generic_do_async(c, batchId, m.id, [this, dspid_or_txid] {
-        QVariant ret;
-        auto [mempool, lock] = storage->mempool(); // shared lock
-        const DSProof *dsp{};
-        if (!(dsp = mempool.dsps.bestProofForTx(dspid_or_txid))) // try txid first
-            dsp = mempool.dsps.get(DspHash{dspid_or_txid});
-        if (dsp && !dsp->isEmpty())
-            ret = dsp->toVarMap();
-        return ret;
-    });
-}
-void Server::rpc_blockchain_transaction_dsproof_list(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    if (isBTC || !bitcoindmgr->hasDSProofRPC())
-        throw RPCError("This server lacks dsproof support", RPC::ErrorCodes::Code_MethodNotFound);
-    generic_do_async(c, batchId, m.id, [this] {
-        DSProof::TxHashSet allDescendants;
-        {
-            auto [mempool, lock] = storage->mempool(); // shared lock
-            const auto &dsps = mempool.dsps.getAll();
-            allDescendants.reserve(dsps.size()); // start out preallocing for at least 1 descendant per dsp
-            for (const auto & [dspHash, dsp] : dsps)
-                allDescendants.insert(dsp.descendants.begin(), dsp.descendants.end());
-        }
-        QVariantList ret;
-        ret.reserve(allDescendants.size());
-        for (const auto &txid : allDescendants)
-            ret.append(Util::ToHexFast(txid));
-        return ret;
-    });
-}
-void Server::rpc_blockchain_transaction_dsproof_subscribe(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    if (isBTC || !bitcoindmgr->hasDSProofRPC())
-        throw RPCError("This server lacks dsproof support", RPC::ErrorCodes::Code_MethodNotFound);
-    const auto txid = parseFirstHashParamCommon(m, "Invalid tx hash");
-    impl_generic_subscribe(storage->dspSubs(), c, batchId, m, txid);
-}
-void Server::rpc_blockchain_transaction_dsproof_unsubscribe(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    if (isBTC || !bitcoindmgr->hasDSProofRPC())
-        throw RPCError("This server lacks dsproof support", RPC::ErrorCodes::Code_MethodNotFound);
-    const auto txid = parseFirstHashParamCommon(m, "Invalid tx hash");
-    impl_generic_unsubscribe(storage->dspSubs(), c, batchId, m, txid);
-}
-// /DSPROOF
 void Server::rpc_blockchain_utxo_get_info(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
 {
     const QVariantList l = m.paramsList();
@@ -2059,12 +2004,6 @@ HEY_COMPILER_PUT_STATIC_HERE(Server::StaticData::registry){
     { {"blockchain.transaction.id_from_pos",true,               false,    PR{2,3},                    },          MP(rpc_blockchain_transaction_id_from_pos) },
     { {"blockchain.transaction.subscribe",   true,              false,    PR{1,1},                    },          MP(rpc_blockchain_transaction_subscribe) },
     { {"blockchain.transaction.unsubscribe", true,              false,    PR{1,1},                    },          MP(rpc_blockchain_transaction_unsubscribe) },
-    // DSPROOF
-    { {"blockchain.transaction.dsproof.get",         true,      false,    PR{1,1},                    },          MP(rpc_blockchain_transaction_dsproof_get) },
-    { {"blockchain.transaction.dsproof.list",        true,      false,    PR{0,0},                    },          MP(rpc_blockchain_transaction_dsproof_list) },
-    { {"blockchain.transaction.dsproof.subscribe",   true,      false,    PR{1,1},                    },          MP(rpc_blockchain_transaction_dsproof_subscribe) },
-    { {"blockchain.transaction.dsproof.unsubscribe", true,      false,    PR{1,1},                    },          MP(rpc_blockchain_transaction_dsproof_unsubscribe) },
-    // /DSPROOF
 
     { {"blockchain.utxo.get_info",          true,               false,    PR{2,2},                    },          MP(rpc_blockchain_utxo_get_info) },
 

@@ -63,11 +63,10 @@ namespace BTC {
         Net net() const noexcept { return _net; }
 
         //! Returns true if this address is valid would be identical if encoded on network `net`.
-        //! This is only true for TestNet, TestNet4, & ScaleNet which are interchangeable.
+        //! This is only true for Bitcoin Cash and should be removed son.
         bool isCompatibleWithNet(Net net) const;
 
-        bool isTestNet() const noexcept { return _net == TestNet || _net == TestNet4; }
-        bool isScaleNet() const noexcept { return _net == ScaleNet; }
+        bool isTestNet() const noexcept { return _net == TestNet; }
         bool isRegTestNet() const noexcept { return _net == RegTestNet; }
         bool isMainNet() const noexcept { return _net == MainNet; }
 

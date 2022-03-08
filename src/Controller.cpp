@@ -20,8 +20,6 @@
 #include "BlockProc.h"
 #include "BTC.h"
 #include "Controller.h"
-#include "Controller_SynchDSPsTask.h"
-#include "DSProof.h"
 #include "Mempool.h"
 #include "Merkle.h"
 #include "SubsMgr.h"
@@ -285,31 +283,10 @@ void Controller::on_bitcoinCoreDetection(bool iscore)
         return;
     }
     if (ourtype != detectedtype) {
-        // Misconfiguration -- DB says one thing and bitcoind says another. Complain and exit.
-        if (detectedtype == BTC::Coin::BTC && ourtype == BTC::Coin::BCH) {
-            // bitcoind is Core, yet we are expecting BCH
-            Fatal() << "\n\n"
-
-                       "You are connected to a Bitcoin Core (BTC) bitcoind, yet this database was not\n"
-                       "synched to a BTC chain.\n\n"
-
-                       "Please either connect to the appropriate bitcoind for this database, or delete\n"
-                       "the datadir and resynch to this bitcoind.\n";
-        } else if (detectedtype == BTC::Coin::BCH && ourtype == BTC::Coin::BTC){
-            // bitcoind is not Core, we are expecting BTC
-            Fatal() << "\n\n"
-                       "You are connected to a non-Bitcoin Core (BTC) bitcoind, yet this database was\n"
-                       "synched to a BTC chain.\n\n"
-
-                       "At the present time, to use BTC, bitcoind must be Bitcoin Core v0.17.0 or above.\n"
-                       "Please either connect to the appropriate bitcoind for this database, or delete\n"
-                       "the datadir and resynch.\n";
-        } else {
-            // defensive programming -- should never be reached. This is here in case we
-            // add new coin types yet we forget to update this code.
-            Fatal() << "INTERNAL ERROR: Unexpected coin combination: ourtype=" << BTC::coinToName(ourtype)
-                    << " detectedtype=" <<  BTC::coinToName(detectedtype) << " -- FIXME!";
-        }
+        // defensive programming -- should never be reached. This is here in case we
+        // add new coin types yet we forget to update this code.
+        Fatal() << "INTERNAL ERROR: Unexpected coin combination: ourtype=" << BTC::coinToName(ourtype)
+                << " detectedtype=" <<  BTC::coinToName(detectedtype) << " -- FIXME!";
     }
 }
 
@@ -632,8 +609,6 @@ struct SynchMempoolTask : public CtlTask
 
     /// The scriptHashes that were affected by this refresh/synch cycle. Used for notifications.
     std::unordered_set<HashX, HashHasher> scriptHashesAffected;
-    /// The txids in the adds or drops that also have dsproofs associated with them (cumulative across retries, like scriptHashesAffected)
-    Mempool::TxHashSet dspTxsAffected;
     /// The txids either added or dropped -- for the txSubsMgr
     std::unordered_set<TxHash, HashHasher> txidsAffected;
 
@@ -645,8 +620,7 @@ struct SynchMempoolTask : public CtlTask
         // Note: we don't clear "scriptHashesAffected" intentionally in case we are retrying. We want to accumulate
         // all the droppedTx scripthashes for each retry, so we never clear the set.
         // Note 2: we also never clear the redoCt since that counter needs to maintain state to abort too many redos.
-        // Note 3: we also never clear dspTxsAffected
-        // Note 4: we never clear txidsAffected
+        // Note 3: we never clear txidsAffected
     }
 
     /// Called when getrawtransaction errors out or when we dropTxs() and the result is too many txs so we must
@@ -669,10 +643,6 @@ SynchMempoolTask::~SynchMempoolTask() {
             // notify status change for affected sh's, regardless of how this task exited (this catches corner cases
             // where we queued up some notifications and then we died on a retry due to errors from bitcoind)
             storage->subs()->enqueueNotifications(std::move(scriptHashesAffected));
-        }
-        if (!dspTxsAffected.empty()) {
-            DebugM(objectName(), ": dspTxsAffected: ", dspTxsAffected.size());
-            storage->dspSubs()->enqueueNotifications(std::move(dspTxsAffected));
         }
         if (!txidsAffected.empty()) {
             //DebugM(objectName(), ": txidsAffected: ", txidsAffected.size());
@@ -843,7 +813,6 @@ void SynchMempoolTask::processResults()
         updateLastProgress(0.80);
         return mempool.addNewTxs(scriptHashesAffected, txsDownloaded, getFromCache, TRACE); // may throw
     }();
-    dspTxsAffected.merge(std::move(res.dspTxsAffected));
     if ((res.oldSize != res.newSize || res.elapsedMsec > 1e3) && Debug::isEnabled()) {
         Controller::printMempoolStatusToLog(res.newSize, res.newNumAddresses, res.elapsedMsec, true, true);
     }
@@ -1001,12 +970,9 @@ void SynchMempoolTask::doGetRawMempool()
                     d << "Dropped " << droppedCt << " txs from mempool (" << affected.size() << " addresses) in "
                       << QString::number(res.elapsedMsec, 'f', 3) << " msec, new mempool size: " << res.newSize
                       << " (" << res.newNumAddresses << " addresses)";
-                    if (res.dspRmCt || res.dspTxRmCt)
-                        d << " (also dropped dsps: " << res.dspRmCt << " dspTxs: " << res.dspTxRmCt << ")";
                 }
                 scriptHashesAffected.merge(std::move(affected)); /* update set here with lock not held */
-                dspTxsAffected.merge(std::move(res.dspTxsAffected)); /* also update this */
-                // . <--- NB: at this point: affected and res.dspsTxsAffected are moved-from
+                // . <--- NB: at this point: affected is moved-from
             }
             if (UNLIKELY(droppedCt != expectedDropCt)) { // This invariant is checked to detect bugs.
                 Warning() << "Synch mempool expected to drop " << droppedTxs.size() << ", but in fact dropped "
@@ -1035,7 +1001,6 @@ struct Controller::StateMachine
         Begin=0, WaitingForChainInfo, GetBlocks, DownloadingBlocks, FinishedDL, End, Failure, BitcoinDIsInHeaderDL,
         Retry, RetryInIBD,
         SynchMempool, SynchingMempool, SynchMempoolFinished,
-        SynchDSPs, SynchingDSPs, SynchDSPsFinished, // happens after synch mempool; only reached if bitcoind has the dsproof rpc
     };
     State state = Begin;
     bool suppressSaveUndo = false; ///< true if bitcoind is in IBD, in which case we don't save undo info.
@@ -1089,17 +1054,10 @@ unsigned Controller::downloadTaskRecommendedThrottleTimeMsec(unsigned bnum) cons
             // mainnet
             if (bnum > 150'000) // beyond this height the blocks are starting to be big enough that we want to not eat memory.
                 maxBackLog = 250;
-            else if (bnum > 550'000 && !isCoinBTC()) // beyond this height we may start to see 32MB blocks in the future
-                maxBackLog = 100;
-        } else if (sm->net == BTC::ScaleNet) {
-            if (bnum > 10'000)
-                maxBackLog = 10; // on ScaleNet, after block 10,000 -- we may start to hit big blocks.
-        } else if (sm->net == BTC::TestNet4) {
-            // nothing, use 1000 always, testnet4 has has 2MB blocks.
         } else {
             // testnet
-            if (bnum > 1'300'000) // beyond this height 32MB blocks may be common, esp. in the future
-                maxBackLog = isCoinBTC() ? 250 : 100;
+            if (bnum > 1'300'000) 
+                maxBackLog = 250;
         }
 
         const int diff = int(bnum) - int(sm->ppBlkHtNext.load()); // note: ppBlkHtNext is not guarded by the lock but it is an atomic value, so that's fine.
@@ -1396,38 +1354,10 @@ void Controller::process(bool beSilentIfUpToDate)
             AGAIN();
         });
         sm->state = State::SynchingMempool;
-    } else if (sm->state == State::SynchDSPs) {
-        auto task = newTask<SynchDSPsTask>(false, this, storage, masterNotifySubsFlag);
-        task->threadObjectDebugLifecycle = Trace::isEnabled(); // suppress verbose lifecycle prints unless trace mode
-        connect(task, &CtlTask::success, this, [this, task]{
-            if (UNLIKELY(!sm || isTaskDeleted(task) || sm->state != State::SynchingDSPs))
-                // task was stopped from underneath us and/or this response is stale.. so return and ignore
-                return;
-            sm->state = State::SynchDSPsFinished;
-            AGAIN();
-        });
-        // synch mempool task is an optional task, not critical. tolerate errors as if they were successes
-        connect(task, &CtlTask::errored, this, [this, task]{
-            if (UNLIKELY(!sm || isTaskDeleted(task) || sm->state != State::SynchingDSPs))
-                // task was stopped from underneath us and/or this response is stale.. so return and ignore
-                return;
-            Warning() << "SynchDSPs RPC error, ignoring...";
-            sm->state = State::SynchDSPsFinished;
-            AGAIN();
-        });
-        sm->state = State::SynchingDSPs;
-    } else if (sm->state == State::SynchingMempool || sm->state == State::SynchingDSPs) {
+    } else if (sm->state == State::SynchingMempool) {
         // ... nothing..
     } else if (sm->state == State::SynchMempoolFinished) {
-        // ...
-        if (bitcoindmgr->hasDSProofRPC())
-            sm->state = State::SynchDSPs; // remote bitcoind has dsproof rpc, proceed to synch dsps
-        else
-            sm->state = State::End; // remote bitcoind lacks dsproof rpc, finish successfully
-        AGAIN();
-    } else if (sm->state == State::SynchDSPsFinished) {
-        // ...
-        sm->state = State::End;
+        sm->state = State::End; // finish successfully
         AGAIN();
     }
 
@@ -1729,7 +1659,6 @@ auto Controller::stats() const -> Stats
     misc["Job Queue (Thread Pool)"] = ::AppThreadPool()->stats();
     st["Misc"] = misc;
     st["SubsMgr"] = storage->subs()->statsSafe(kDefaultTimeout/2);
-    st["SubsMgr (DSPs)"] = storage->dspSubs()->statsSafe(kDefaultTimeout/4);
     st["SubsMgr (Txs)"] = storage->txSubs()->statsSafe(kDefaultTimeout/4);
     // Config (Options) map
     st["Config"] = options->toMap();
@@ -1798,10 +1727,6 @@ auto Controller::debug(const StatsParams &p) const -> Stats // from StatsMixin
     if (p.contains("subs")) {
         const auto timeLeft = kDefaultTimeout - (Util::getTime() - t0/1000000) - 50;
         ret["subscriptions"] = storage->subs()->debugSafe(p, std::max(5, int(timeLeft)));
-    }
-    if (p.contains("dspsubs")) {
-        const auto timeLeft = kDefaultTimeout - (Util::getTime() - t0/1000000) - 50;
-        ret["subscriptions (DSProof)"] = storage->dspSubs()->debugSafe(p, std::max(5, int(timeLeft)));
     }
     if (p.contains("txsubs")) {
         const auto timeLeft = kDefaultTimeout - (Util::getTime() - t0/1000000) - 50;

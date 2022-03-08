@@ -47,12 +47,7 @@ struct BitcoinDInfo {
     QString subversion; ///< subversion string from daemon e.g.: /Bitcoin Cash Node bla bla;EB32 ..../
     double relayFee = 0.0; ///< from 'relayfee' in the getnetworkinfo response; minimum fee/kb to relay a tx, usually: 0.00001000
     QString warnings = ""; ///< from 'warnings' in the getnetworkinfo response (usually is empty string, but may not always be)
-    bool isBchd = false; ///< true if remote bitcoind subversion is: /bchd:...
-    bool isZeroArgEstimateFee = false; ///< true if remote bitcoind expects 0 argument "estimatefee" RPC.
     bool isCore = false; ///< true if we are actually connected to /Satoshi.. node (Bitcoin Core)
-    bool isBU = false; ///< true if subversion string starts with "/BCH Unlimited:"
-    bool lacksGetZmqNotifications = false; ///< true if bchd or BU < 1.9.1.0, or if we got an RPC error the last time we queried
-    bool hasDSProofRPC = false; ///< true if the RPC query to `getdsprooflist` didn't return an error.
 
     /// The below field is populated from bitcoind RPC `getzmqnotifications` (if supported and if we are compiled to
     /// use libzmq).  Note that entires in here are auto-transformed by BitcoinDMgr such that:
@@ -116,9 +111,6 @@ public:
     /// in the db. See also: Storage::genesisHash().
     BlockHash getBitcoinDGenesisHash() const;
 
-    /// Thread-safe.  Convenient method to avoid an extra copy. Returns getBitcoinDInfo().isZeroArgEstimateFee
-    bool isZeroArgEstimateFee() const;
-
     /// Thread-safe.  Convenient method to avoid an extra copy. Returns getBitcoinDInfo().isCore
     bool isBitcoinCore() const;
 
@@ -127,9 +119,6 @@ public:
 
     /// Thread-safe.  Convenient method to avoid an extra copy. Returns getBitcoinDInfo().zmqNotifications
     BitcoinDZmqNotifications getZmqNotifications() const;
-
-    /// Thread-safe.  Convenient method to avoid an extra copy. Returns getBitcoinDInfo().hasDSProofRPC
-    bool hasDSProofRPC() const;
 
 signals:
     void gotFirstGoodConnection(quint64 bitcoindId); // emitted whenever the first bitcoind after a "down" state (or after startup) gets its first good status (after successful authentication)
@@ -185,9 +174,6 @@ private:
     /// called whenever bitcoind comes back alive, updates bitcoinDInfo.zmqNotifications (only called if we are compiled with zmq support)
     void refreshBitcoinDZmqNotifications();
 
-    /// called whenever bitcoind comes back alive, updates bitcoinDInfo.hasDSProofRPC
-    void probeBitcoinDHasDSProofRPC();
-
     /// Calls resetPingTimer on each BitcionD -- used by quirk fixup code since bchd vs bitcoind require different
     /// pingtimes
     void resetPingTimers(int timeout_ms);
@@ -215,9 +201,6 @@ private:
     /// Latched to false after the first time setZmqNotifications() is called.
     /// Used to unconditionally emit the signal the first time through, even if we got an empty map.
     bool setZmqNotificationsWasNeverCalled = true;
-
-    /// dsproof rpc setter -- called internally by probeBitcoinDHasDSProofRPC
-    void setHasDSProofRPC(bool);
 };
 
 class BitcoinD : public RPC::HttpConnection, public ThreadObjectMixin /* NB: also inherits TimersByNameMixin via AbstractConnection base */

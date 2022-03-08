@@ -66,7 +66,7 @@ protected:
     /// The last status sent out as a notification. If it has_value, it's guaranteed to be the most recent one announced
     /// to clients, so it is suitable for use in the respone to e.g. blockchain.scripthash.subscribe (iff has_value).
     SubStatus lastStatusNotified;
-    /// The last status that was computed as the result of a blockchain.[scripthash|dsproof].subscribe RPC call
+    /// The last status that was computed as the result of a blockchain.scripthash.subscribe RPC call
     /// This status is returned as the immediate result for subsequent .subscribe calls after the first client
     /// subscribes (as a performance optimization).  This value is correctly maintained by the notification mechanism
     /// in collaboration with Servers.cpp.  In rare cases it is not the most recent possible status since it is a
@@ -202,13 +202,6 @@ signals:
     void queueNoLongerEmpty();
 
 protected:
-    /// Thread-safe. Takes exclusive locks. Unsubscribes all clients currently subscribed for keys in subKeys. This
-    /// effectively iterates over all the subs matching subKeys and emits the unsubscribeRequested() private signal.
-    /// The actual unsubscribe is effectuated in the thread for each subscribed client.
-    ///
-    /// Only for use with the DSProofSubsMgr.
-    void unsubscribeClientsForKeys(const std::unordered_set<HashX, HashHasher> & subKeys);
-
     /// Reimplement in subclasses to disable caching. called by subscribe and doNotifications to decide if it should
     /// cache statuses or not, or used cached statuses.  Since the DSProofSubsMgr has a very cheap "getFullStatus()",
     /// it reimplements this to false.
@@ -231,10 +224,6 @@ protected:
 
     using SubRef = std::shared_ptr<Subscription>;
     SubRef findExistingSubRef(const HashX &) const; // takes locks, returns an existing subref or empty ref.
-
-    /// Used by the DSProofSubsMgr expireSubsNotInMempool() function to get a set of txids that maybe should be expired
-    /// because they are subscribed but have no mempool tx.
-    std::unordered_set<HashX, HashHasher> nonZombieKeysOlderThan(int64_t msec) const;
 
 private:
     struct Pvt;
@@ -263,41 +252,6 @@ public:
     /// Note that this implicitly will take the Storage "blocksLock" as a shared lock -- so bear that in mind if calling
     /// this from `Storage` with that lock already held.
     SubStatus getFullStatus(const HashX &scriptHash) const override;
-};
-
-class DSProofSubsMgr final : public SubsMgr {
-protected:
-    friend class ::Storage;
-    /// Only Storage can construct one of these -- Storage is guaranteed to remain alive at least as long as this instance.
-    DSProofSubsMgr(const std::shared_ptr<const Options> & opts, Storage * storage, const QString &name = "SubsMgr (DSPs)")
-        : SubsMgr(opts, storage, name) {}
-
-public:
-    ~DSProofSubsMgr() override;
-
-    /// Thread-safe. Returns a SubStatus object which .has_value() and where .dsproof() is not nullptr.
-    /// Will return an object with a dsproof which is not isComplete() (default constructed) if there are no dsproofs
-    /// for the given txHash.
-    ///
-    /// Note that this implicitly will take the Storage "mempool lock" as a shared lock -- so bear that in mind if
-    /// calling this from `Storage` with that lock already held.
-    SubStatus getFullStatus(const HashX &txHash) const override;
-    /// Identical to superclass implementation but it also attaches the unsubscribeRequested() signal to a lambda
-    /// for client, so that SubsMgr::unsubscribeClientsForKeys() is not a no-op.
-    ///
-    /// Note that for the DSProofSubsMgr, we never return a cached value here -- SubscribeResult.second is always
-    /// !has_value() (empty).  Calling code can just query getFullStatus() (this is because getFullStatus() is very
-    /// cheap to call for this SubsMgr, and caching just wastes memory).
-    SubscribeResult subscribe(RPC::ConnectionBase *client, const HashX &sh, const StatusCallback &notifyCB) override;
-
-protected:
-    void on_started() override;
-    void on_finished() override;
-
-    bool useStatusCache() const override { return false; }
-
-private:
-    void expireSubsNotInMempool(); // takes mempool lock in shared mode, called from a timer
 };
 
 class TransactionSubsMgr final : public SubsMgr {

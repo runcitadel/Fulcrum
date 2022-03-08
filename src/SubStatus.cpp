@@ -25,8 +25,6 @@ QVariant SubStatus::toVariant() const
     if (has_value()) {
         if (auto *ba = byteArray(); ba && !ba->isEmpty())
             ret = Util::ToHexFast(*ba);
-        else if (auto *dsp = dsproof(); dsp && !dsp->isEmpty())
-            ret = dsp->toVarMap();
         else if (auto *bh = blockHeight(); bh && *bh)
             ret = **bh; // ptr -> optional -> value
     }

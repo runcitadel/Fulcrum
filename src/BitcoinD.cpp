@@ -36,7 +36,6 @@
 namespace {
     enum class PingTimes : int {
         Normal = 10'000,  /**< Normal bitcoind -- we send a ping every 10 seconds */
-        BCHD   =  3'333,  /**< bchd has a short idle timeout of 10 secs. 3.333 sec pingtime ensures no dropped conns. */
     };
 }
 
@@ -189,56 +188,17 @@ BitcoinD *BitcoinDMgr::getBitcoinD()
 
 namespace {
     struct BitcoinDVersionParseResult {
-        bool isBchd{}, isCore{}, isBU{}, isBCHN{};
+        bool isCore{};
         Version version;
 
         constexpr BitcoinDVersionParseResult() noexcept = default;
         BitcoinDVersionParseResult(unsigned val, const QString &subversion);
-
-        bool definitelyLacksDSProofRPC() const;
     };
 
     BitcoinDVersionParseResult::BitcoinDVersionParseResult(unsigned val, const QString &subversion) {
-        // e.g. 0.20.6 comes in like this from bitcoind (as an unsigned int): 200600 (millions, 10-thousands, hundreds).
-        // Note: some bchd versions have a weird version int with a different format than above, so we handle bchd
-        // differently.
-        if (subversion.startsWith("/bchd")) {
-            // bchd is quirky. We can't rely on its "version" integer since the algorithm for its packing
-            // is bizarre in older versions. (In newer versons Josh says he changed it to match bitcoind).
-            // Instead, we parse the subversion string: "/bchd:maj.min.rev.../"
-            if (const int colon = subversion.indexOf(':'), trailSlash = subversion.lastIndexOf('/'); colon == 5 && trailSlash > colon) {
-                const int len = trailSlash - (colon + 1);
-                if (len > 0)
-                    // try and parse everything after /bchd:
-                    version = Version(subversion.mid(colon + 1, len));
-            }
-            if (!version.isValid())
-                // hmm.. subversion isn't "/bchd:x.y.z.../" -> fall back to unpacking the integer value (only works on newer bchd)
-                version = Version::BitcoinDCompact(val);
-            isBchd = true;
-        } else {
-            isCore = subversion.startsWith("/Satoshi:");
-            isBU = subversion.startsWith("/BCH Unlimited:");
-            isBCHN = subversion.startsWith("/Bitcoin Cash Node:");
-            // regular bitcoind, "version" is reliable and always the same format
-            version = Version::BitcoinDCompact(val);
-        }
-    }
-
-    bool BitcoinDVersionParseResult::definitelyLacksDSProofRPC() const {
-        // BCHN before 22.3.0 lacks this rpc
-        if (isBCHN && version < Version{22, 3, 0})
-            return true;
-        // at the time of this writing, 0.17.1 is latest bchd and it definitely lacks this rpc, but leave room for future bchd to add it.
-        if (isBchd && version < Version{0, 17, 2})
-            return true;
-        // at the time of this writing, released BU is 1.9.0 and it definitely lacks the dsproof RPC
-        if (isBU && version < Version{1, 9, 1})
-            return true;
-        if (isCore) // core will definitely never add this feature
-            return true;
-        // for all other remote daemons, return false so that calling code will probe.
-        return false;
+        isCore = subversion.startsWith("/Satoshi:");
+        // regular bitcoind, "version" is reliable and always the same format
+        version = Version::BitcoinDCompact(val);
     }
 }
 
@@ -248,7 +208,6 @@ void BitcoinDMgr::refreshBitcoinDNetworkInfo()
         // success
         [this](const RPC::Message & reply) {
             BitcoinDVersionParseResult res;
-            bool lacksGetZmqNotifications{};
             {
                 const QVariantMap networkInfo = reply.result().toMap();
                 // --- EXCLUSIVE-LOCKED SCOPE below this line ---
@@ -270,48 +229,21 @@ void BitcoinDMgr::refreshBitcoinDNetworkInfo()
                     }
                 }(bitcoinDInfo.subversion, networkInfo);
                 // assign to shared object now from stack object BitcoinDVersionParseResult
-                std::tie(bitcoinDInfo.isBchd, bitcoinDInfo.isCore, bitcoinDInfo.isBU, bitcoinDInfo.version)
-                    = std::tie(res.isBchd, res.isCore, res.isBU, res.version);
+                std::tie(bitcoinDInfo.isCore, bitcoinDInfo.version)
+                    = std::tie(res.isCore, res.version);
                 bitcoinDInfo.relayFee = networkInfo.value("relayfee", 0.0).toDouble();
                 bitcoinDInfo.warnings = networkInfo.value("warnings", "").toString();
-                // set quirk flags: requires 0 arg `estimatefee`?
-                auto isZeroArgEstimateFee = [](const Version &version, const QString &subversion) -> bool {
-                    static const QString zeroArgSubversionPrefixes[] = { "/Bitcoin ABC", "/Bitcoin Cash Node", };
-                    constexpr Version minVersion{0, 20, 2};
-                    if (version < minVersion)
-                        return false;
-                    for (const auto & prefix : zeroArgSubversionPrefixes)
-                        if (subversion.startsWith(prefix))
-                            return true;
-                    return false;
-                };
-                bitcoinDInfo.isZeroArgEstimateFee = !res.isCore && isZeroArgEstimateFee(bitcoinDInfo.version, bitcoinDInfo.subversion);
-                // Implementations known to lack `getzmqnotifications`:
-                // - bchd (all versions)
-                // - BU before version 1.9.1.0
-                bitcoinDInfo.lacksGetZmqNotifications
-                    = lacksGetZmqNotifications
-                    = res.isBchd || (res.isBU && res.version < Version{1, 9, 1});
-                // clear hasDSProofRPC until proven to have it via a query
-                bitcoinDInfo.hasDSProofRPC = false;
             } // end lock scope
             // be sure to announce whether remote bitcoind is bitcoin core (this determines whether we use segwit or not)
             emit bitcoinCoreDetection(res.isCore);
             // next, be sure to set up the ping time appropriately for bchd vs bitcoind
-            resetPingTimers(int(res.isBchd ? PingTimes::BCHD : PingTimes::Normal));
+            resetPingTimers(int(PingTimes::Normal));
             // next up, do this query
             refreshBitcoinDGenesisHash();
             // and also this one, if we were compiled with libzmq and remote bitcoind may have `getzmqnotifications`
             if (ZmqSubNotifier::isAvailable()) {
-                if (lacksGetZmqNotifications) {
-                    DebugM("remote bitcoind lacks RPC method: getzmqnotifications");
-                    setZmqNotifications({}); // clear it -- tells client code no zmq
-                } else
-                    refreshBitcoinDZmqNotifications(); // query since we think bitcoind maybe has the RPC method
+                refreshBitcoinDZmqNotifications();
             }
-            // also see about refreshing whether remote bitcoind has dsproof rpc, but don't query for versions we know don't have it.
-            if (!res.definitelyLacksDSProofRPC())
-                probeBitcoinDHasDSProofRPC();
         },
         // error
         [](const RPC::Message &msg) {
@@ -427,11 +359,10 @@ void BitcoinDMgr::refreshBitcoinDZmqNotifications()
         // error
         [this](const RPC::Message &msg) {
             // TODO: offer up a conf file and/or CLI arg to suppress this warning and/or probing?
-            Warning() << "getzmqnotifications query to bitcoind failed, code: " << msg.errorCode() << ", error: "
+             Error() << "getzmqnotifications query to bitcoind failed, code: " << msg.errorCode() << ", error: "
                       << msg.errorMessage();
             setZmqNotifications({}); // clear current, if any
             std::unique_lock g(bitcoinDInfoLock);
-            bitcoinDInfo.lacksGetZmqNotifications = true; // flag that we think remote lacks this RPC
         },
         // failure
         [this](const RPC::Message::Id &, const QString &reason) {
@@ -441,43 +372,10 @@ void BitcoinDMgr::refreshBitcoinDZmqNotifications()
     );
 }
 
-// this is only ever called if we are compiled with zmq support
-void BitcoinDMgr::probeBitcoinDHasDSProofRPC()
-{
-    submitRequest(this, newId(), "getdsprooflist", {0},
-        // success
-        [this](const RPC::Message & reply) {
-            if (!reply.result().canConvert<QVariantList>()) {
-                Warning() << "getdsprooflist: query to bitcoind returned a result in an unexpected format";
-                setHasDSProofRPC(false);
-            } else {
-                Debug() << "getdsprooflist: remote bitcoind has the RPC";
-                setHasDSProofRPC(true);
-            }
-        },
-        // error -- probe basically returned a negative result (error details will be automatically logged to debug log)
-        [this](const RPC::Message &) {
-            Debug() << "getdsprooflist: remote bitcoind lacks the RPC";
-            setHasDSProofRPC(false);
-        },
-        // failure -- connection dropped just as we were doing this
-        [this](const RPC::Message::Id &, const QString &reason) {
-            Error() << "getdsprooflist failed: " << reason;
-            setHasDSProofRPC(false);
-        }
-    );
-}
-
 BitcoinDInfo BitcoinDMgr::getBitcoinDInfo() const
 {
     std::shared_lock g(bitcoinDInfoLock);
     return bitcoinDInfo;
-}
-
-bool BitcoinDMgr::isZeroArgEstimateFee() const
-{
-    std::shared_lock g(bitcoinDInfoLock);
-    return bitcoinDInfo.isZeroArgEstimateFee;
 }
 
 bool BitcoinDMgr::isBitcoinCore() const
@@ -516,18 +414,6 @@ void BitcoinDMgr::setZmqNotifications(const BitcoinDZmqNotifications &zmqs)
         }
     }
     if (changed) emit zmqNotificationsChanged(zmqs);
-}
-
-bool BitcoinDMgr::hasDSProofRPC() const
-{
-    std::shared_lock g(bitcoinDInfoLock);
-    return bitcoinDInfo.hasDSProofRPC;
-}
-
-void BitcoinDMgr::setHasDSProofRPC(bool b)
-{
-    std::unique_lock g(bitcoinDInfoLock);
-    bitcoinDInfo.hasDSProofRPC = b;
 }
 
 /// This is safe to call from any thread. Internally it dispatches messages to this obejct's thread.
@@ -887,11 +773,7 @@ QVariantMap BitcoinDInfo::toVariandMap() const
     ret["subversion"] = subversion;
     ret["warnings"] = warnings;
     ret["relayfee"] = relayFee;
-    ret["isZeroArgEstimateFee"] = isZeroArgEstimateFee;
-    ret["isBchd"] = isBchd;
     ret["isCore"] = isCore;
-    ret["lacksGetZmqNotifications"] = lacksGetZmqNotifications;
-    ret["hasDSProofRPC"] = hasDSProofRPC;
     QVariantList zmqs;
     for (auto it = zmqNotifications.begin(); it != zmqNotifications.end(); ++it)
         zmqs.push_back(QVariantList{it.key(), it.value()});

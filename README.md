@@ -24,14 +24,12 @@ GPLv3. See the included `LICENSE.txt` file or [visit gnu.org and read the licens
 - *Fast:* Written in 100% modern `C++17` using multi-threaded and asynchronous programming techniques.
 - *A drop-in replacement for ElectronX/ElectrumX:* Fulcrum is 100% protocol-level compatible with the [Electrum Cash 1.4.5 protocol](https://electrum-cash-protocol.readthedocs.io/en/latest/). Existing server admins should feel right at home with this software since installation and management of it is nearly identical to ElectronX/ElectrumX server.
 - *Cross-platform:* While this codebase was mainly developed and tested on MacOS, Windows and Linux, it should theoretically work on any modern OS (such as *BSD) that has Qt5 Core and Qt5 Networking available.
-- ***NEW!*** *Dual-coin:* Supports both BCH and BTC.
 
 ### Requirements
 
 - *For running*:
   - A supported bitcoin full node with its JSON-RPC service enabled, preferably running on the same machine.
-    - *For **BCH***: Bitcoin Cash Node, Bitcoin Unlimited Cash, Flowee, and bchd have all been tested extensively and are known to work well with this software.
-    - *For **BTC***: Bitcoin Core v0.17.0 or later.  No other full nodes are supported by this software for BTC.
+    - *For **BTC***: Bitcoin Core v0.17.0 or later. Bitcoin Knots is also supported. BTCD has not yet been tested.
     - The node must have txindex enabled e.g. `txindex=1`.
     - The node must not be a pruning node.
     - *Optional*: For best results, enable zmq for the "hasblock" topic using e.g. `zmqpubhashblock=tcp://0.0.0.0:8433` in your `bitcoin.conf` file (zmq is only available on: Core, BCHN, or BU 1.9.1+).
@@ -44,14 +42,19 @@ GPLv3. See the included `LICENSE.txt` file or [visit gnu.org and read the licens
 ### Quickstart
 
 1. Download a [pre-built static binary](https://github.com/runcitadel/FulcrumX/releases).
+<<<<<<< HEAD
 2. Verify that the binary runs on your system by executing the binary with `./FulcrumX -h` to see the CLI options.
 3. Setup a configuration file and to point Fulcrum to your bitcoind JSON-RPC server, specify listening ports, TLS certificates, etc.  See: [doc/fulcrum-example-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-example-config.conf) and/or [doc/fulcrum-quick-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-quick-config.conf)
 
+=======
+2. Verify that the binary runs on your system by executing the binary with `./Fulcrum -h` to see the CLI options.
+3. Setup a configuration file and to point Fulcrum to your bitcoind JSON-RPC server, specify listening ports, TLS certificates, etc.  See: [doc/fulcrum-example-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-example-config.conf) and/or [doc/fulcrum-quick-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-quick-config.conf)
+>>>>>>> c86bf77 (More Bitcoin cash code removed)
 4. Also see this section below on [Running Fulcrum](#running-fulcrum).
 
 ### How To Compile
 
-Compiling is for those users that do not wish to use the [pre-built static binaries provided here](https://github.com/cculianu/Fulcrum/releases), or for users on platforms for which the static binaries are not provided (such as FreeBSD or macOS). To compile, it's recommended you use the Qt Creator IDE.
+Compiling is for those users that do not wish to use the [pre-built static binaries provided here](https://github.com/runcitadel/FulcrumX/releases), or for users on platforms for which the static binaries are not provided (such as FreeBSD or macOS). To compile, it's recommended you use the Qt Creator IDE.
 
 1. Get the latest version of Qt Open Source Edition for your platform.
 2. Point the Qt Creator IDE at the `Fulcrum.pro` file.
@@ -72,7 +75,7 @@ If you have problems compiling, the most likely culprit would be your compiler n
 
 The other likely culprit is the fact that at the present time I have included a statically-built `librocksdb` in the codebase. There are versions of this library for Windows, Mac, and Linux included right in the source tree, and `Fulcrum.pro` looks for them and links to them. Instructions are included within the `Fulcrum.pro` project file about how to build your own static `librocksdb` if the bundled one does not work on your system.
 
-If you are still having trouble, [file an issue here in this github](https://github.com/cculianu/Fulcrum/issues).
+If you are still having trouble, [file an issue here in this github](https://github.com/runcitadel/FulcrumX/issues).
 
 #### Linking against the system `librocksdb.so` (experimental)
 
@@ -85,7 +88,7 @@ You may optionally build against the **system rocksdb** (Linux only) if your dis
 
 #### Making sure `libzmq` is detected and used (optional but recommended)
 
-Ensure that `libzmq3` (Debian/Ubuntu) and/or `zeromq-devel` (Fedora/Redhat) is installed, and that `pkg-config` is also installed.  If on Unix (macOS, Linux, or Windows MinGW), then ideally the `qmake` step will find `libzmq` on your system and automatically use it. If that is not the case, you may try passing flags to `qmake` such as `LIBS+="-L/path/to/libdir_containting_libzmq -lzmq"` and `INCLUDEPATH+="/path/to/dir_containing_zmq_h"` as arguments when you invoke `qmake`.  Using `libzmq` is optional but highly recommended. If you have trouble getting Fulcrum to compile against your `libzmq`, [open a new issue](https://github.com/cculianu/Fulcrum/issues) and maybe I can help.
+Ensure that `libzmq3` (Debian/Ubuntu) and/or `zeromq-devel` (Fedora/Redhat) is installed, and that `pkg-config` is also installed.  If on Unix (macOS, Linux, or Windows MinGW), then ideally the `qmake` step will find `libzmq` on your system and automatically use it. If that is not the case, you may try passing flags to `qmake` such as `LIBS+="-L/path/to/libdir_containting_libzmq -lzmq"` and `INCLUDEPATH+="/path/to/dir_containing_zmq_h"` as arguments when you invoke `qmake`.  Using `libzmq` is optional but highly recommended. If you have trouble getting Fulcrum to compile against your `libzmq`, [open a new issue](https://github.com/runcitadel/FulcrumX/issues) and maybe I can help.
 
 ### Building the Windows static `Fulcrum.exe`
 
@@ -93,7 +96,7 @@ Ensure that `libzmq3` (Debian/Ubuntu) and/or `zeromq-devel` (Fedora/Redhat) is i
 Windows `.exe`. This build is 100% compatible with any stock 64-bit Windows 7 or
 above system -- you don't have to install anything -- it *just works*. You can
 download the pre-built `.exe` yourself here from the [releases
-page](https://github.com/cculianu/Fulcrum/releases).
+page](https://github.com/runcitadel/FulcrumX/releases).
 
 If you want to build it yourself though, you can do so, but it requires
 [Docker](https://www.docker.com/) on either a MacOS or a Linux host system (it
@@ -124,7 +127,7 @@ which will appear in `dist/win` after the build process completes.
 Linux executable. This build is 100% compatible with most stock 64-bit Linux
 systems with a new enough glibc and libstdc++. So on a relatively modern Linux system, you
 don't have to install anything -- it *just works*. You can download the
-pre-built binary yourself here from the [releases page](https://github.com/cculianu/Fulcrum/releases).
+pre-built binary yourself here from the [releases page](https://github.com/runcitadel/FulcrumX/releases).
 
 If you want to build it yourself though, you can do so, but it requires [Docker](https://www.docker.com/)
 on either a MacOS or a Linux host system.  It builds a static Qt and static rocksdb.
@@ -149,20 +152,20 @@ script is a git `branch` or `tag` to build.
 
 ---
 
-### Running Fulcrum
+### Running FulcrumX
 
-Execute the binary, with `-h` to see the built-in help, e.g. `./Fulcrum -h`. You can set most options from the CLI, but you can also specify a **config file** as an argument. See:
+Execute the binary, with `-h` to see the built-in help, e.g. `./FulcrumX -h`. You can set most options from the CLI, but you can also specify a **config file** as an argument. See:
 
- - [doc/fulcrum-example-config.conf](https://github.com/cculianu/Fulcrum/blob/master/doc/fulcrum-example-config.conf) in the source tree. This sample config file is very well documented with comments.
- - [doc/fulcrum-quick-config.conf](https://github.com/cculianu/Fulcrum/blob/master/doc/fulcrum-quick-config.conf) in the source tree. This is a more abbreviated config file you can use as a starting point as well.
+ - [doc/fulcrum-example-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-example-config.conf) in the source tree. This sample config file is very well documented with comments.
+ - [doc/fulcrum-quick-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-quick-config.conf) in the source tree. This is a more abbreviated config file you can use as a starting point as well.
 
-`Fulcrum` requires a `bitcoind` instance running either on `testnet` or `mainnet` (or `regtest` for testing), which you must tell it about via the CLI options or via the config file.  You also need to tell it what port(s) to listen on and optionally what SSL certificates to use (if using SSL). ***Note:*** *Electron Cash (and/or Electrum) at this time no longer support connecting to non-SSL servers, so you should probably configure SSL for production use*.
+`Fulcrum` requires a `bitcoind` instance running either on `testnet` or `mainnet` (or `regtest` for testing), which you must tell it about via the CLI options or via the config file.  You also need to tell it what port(s) to listen on and optionally what SSL certificates to use (if using SSL).
 
 It is recommended you specify a data dir (`-D` via CLI or `datadir=` via config file) on an SSD drive for best results.  Synching against `testnet` should take you about 10-20 minutes (more on slower machines), and mainnet can take anywhere from 4 hours to 20+ hours, depending on machine and drive speed.  I have not tried synching against mainnet on an HDD and it will probably take ***days*** if you are lucky.
 
-Once the server finishes synching it will behave like an ElectronX/ElectrumX server and it can receive requests from Electron Cash (or Electrum if on BTC).
+Once the server finishes synching it will behave like an ElectronX/ElectrumX server and it can receive requests from Electrum.
 
-You may also wish to read the [Fulcrum manpage](https://github.com/cculianu/Fulcrum/blob/master/doc/unix-man-page.md).
+You may also wish to read the [FulcrumX manpage](https://github.com/runcitadel/FulcrumX/blob/master/doc/unix-man-page.md).
 
 
 #### Admin Script: FulcrumAdmin
@@ -174,12 +177,6 @@ You may also wish to read the [Fulcrum manpage](https://github.com/cculianu/Fulc
     $ ./FulcrumAdmin -p 8000 getinfo
 
 ***(This section is incomplete for now, all apologies -- more documentation is coming soon!)***
-
----
-
-### Protocol Documentation
-
-Documentation for the Electrum Cash protocol that Fulcrum uses is [available here](https://electrum-cash-protocol.readthedocs.io/en/latest/).
 
 ---
 
@@ -217,21 +214,3 @@ Everything should just work (I use MacOS as my dev machine).
 **Q:** Why is the compiled binary called `Fulcrum` (capital `F`) and not `fulcrum` (lowercase `f`) as is customary on Linux/Unix?
 
 **A:** Because I like capital letters, even on Linux.  I also develop (this and other software) for macOS and Windows and over there the Linux/Unix lowecase thing looks a little out-of-place.  Perhaps my sensibilities have been affected by my win32 and macOS dev work, or perhaps I'm just unconventional.  Embrace the lack of convention here! That being said, if the capital `F` bothers you, feel free to rename it or represent it as `fulcrum` wherever you like.
-
----
-
-### Donations
-
-Sure!  Send **BCH** here:
-
-[bitcoincash:qphax4s4n9h60jxj2fkrjs35w2tvgd4wzvf52cgtzc](bitcoincash:qphax4s4n9h60jxj2fkrjs35w2tvgd4wzvf52cgtzc)
-
-[![bitcoincash:qphax4s4n9h60jxj2fkrjs35w2tvgd4wzvf52cgtzc](https://raw.githubusercontent.com/cculianu/DonateSpareChange/master/donate.png)](bitcoincash:qphax4s4n9h60jxj2fkrjs35w2tvgd4wzvf52cgtzc)
-
-You may also send **BTC** to the BTC-equivalent of the above address, which is: **`1BCHBCH6TXBaXyc5HReLBm1sNytBF2kkPD`**
-
----
-
-### Sponsors
-
-![General Protocols](https://c3-soft.com/imgs/general-protocols.png)

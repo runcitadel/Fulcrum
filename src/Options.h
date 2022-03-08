@@ -1,6 +1,7 @@
 //
-// Fulcrum - A fast & nimble SPV Server for Bitcoin Cash
+// FulcrumX - A fast & nimble SPV Server for Bitcoin
 // Copyright (C) 2019-2022 Calin A. Culianu <calin.culianu@gmail.com>
+// Copyright (C) 2022 Aaron Dewes <aaron.dewes@protonmail.com>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by

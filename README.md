@@ -12,7 +12,9 @@ This has the following advantages over a version with Bitcoin Cash support:
 All other improvements in FulcrumX will be contributed upstream.
 
 #### Copyright
+
 (C) 2019-2022 Calin Culianu <calin.culianu@gmail.com>
+(C) 2022 Aaron Dewes <aaron.dewes@protonmail.com>
 
 #### License:
 GPLv3. See the included `LICENSE.txt` file or [visit gnu.org and read the license](https://www.gnu.org/licenses/gpl-3.0.html).

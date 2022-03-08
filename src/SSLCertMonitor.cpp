@@ -88,7 +88,7 @@ void SSLCertMonitor::on_fileChanged(const QString &path)
             callOnTimerSoon(1000 /* msec */, "waitForDeletedToShowUp", [this, ct=0]() mutable {
                 ++ct;
                 QString changed, missing;
-                for (const auto &f : watchedFiles) {
+                for (const auto &f : qAsConst(watchedFiles)) {
                     const bool watched = watcher->files().contains(f);
                     const bool exists = QFile::exists(f);
                     if (exists && !watched) {

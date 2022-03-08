@@ -217,7 +217,7 @@ void AbstractConnection::on_connected()
     connectedConns.push_back(
         connect(socket, &QAbstractSocket::disconnected, this, [this]{
             DebugM(prettyName(), " socket disconnected");
-            for (const auto & connection : connectedConns) {
+            for (const auto & connection : qAsConst(connectedConns)) {
                 QObject::disconnect(connection);
             }
             connectedConns.clear(); // be sure to empty the list out when we are done!

@@ -1,10 +1,13 @@
-# Fulcrum
+# FulcrumX
 
-[![Travis CI Build](https://img.shields.io/travis/cculianu/Fulcrum/master)](https://travis-ci.org/cculianu/Fulcrum)
-[![Docker Build](https://github.com/cculianu/Fulcrum/actions/workflows/publish.yml/badge.svg)](https://github.com/cculianu/Fulcrum/actions/workflows/publish.yml)
-[![Copr build status](https://copr.fedorainfracloud.org/coprs/jonny/BitcoinCash/package/fulcrum/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/jonny/BitcoinCash/package/fulcrum/)
+A fast & nimble SPV server for Bitcoin.
 
-A fast & nimble SPV server for Bitcoin Cash & Bitcoin BTC.
+This is a fork of the original Fulcrum focused on improving performance with Bitcoin Core.
+
+For that purpose, Bitcoin Cash support has been temporarily removed to make testing easier. 
+
+All improvements in this fork will later be contributed upstream and thiis fork will be deprecated.
+
 
 #### Copyright
 (C) 2019-2022 Calin Culianu <calin.culianu@gmail.com>
@@ -38,9 +41,10 @@ GPLv3. See the included `LICENSE.txt` file or [visit gnu.org and read the licens
 
 ### Quickstart
 
-1. Download a [pre-built static binary](https://github.com/cculianu/Fulcrum/releases).
-2. Verify that the binary runs on your system by executing the binary with `./Fulcrum -h` to see the CLI options.
-3. Setup a configuration file and to point Fulcrum to your bitcoind JSON-RPC server, specify listening ports, TLS certificates, etc.  See: [doc/fulcrum-example-config.conf](https://github.com/cculianu/Fulcrum/blob/master/doc/fulcrum-example-config.conf) and/or [doc/fulcrum-quick-config.conf](https://github.com/cculianu/Fulcrum/blob/master/doc/fulcrum-quick-config.conf)
+1. Download a [pre-built static binary](https://github.com/runcitadel/FulcrumX/releases).
+2. Verify that the binary runs on your system by executing the binary with `./FulcrumX -h` to see the CLI options.
+3. Setup a configuration file and to point Fulcrum to your bitcoind JSON-RPC server, specify listening ports, TLS certificates, etc.  See: [doc/fulcrum-example-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-example-config.conf) and/or [doc/fulcrum-quick-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-quick-config.conf)
+
 4. Also see this section below on [Running Fulcrum](#running-fulcrum).
 
 ### How To Compile

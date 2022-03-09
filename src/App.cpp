@@ -866,7 +866,6 @@ void App::parseArgs()
     /// misc conf-only variables ...
     if (conf.hasValue("donation")) {
         options->donationAddress = conf.value("donation", options->donationAddress).left(80); // the 80 character limit is in case the user specified a crazy long string, no need to send all of it -- it's probably invalid anyway.
-        options->isDefaultDonationAddress = false; // turns off the auto-transform mechanism for the author's address.
     }
     options->bannerFile = conf.value("banner", options->bannerFile);
     if (conf.hasValue("hostname"))

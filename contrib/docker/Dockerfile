@@ -3,7 +3,7 @@ FROM debian:bullseye as builder
 ARG MAKEFLAGS
 
 RUN apt update -y && \
-    apt install -y openssl git build-essential pkg-config zlib1g-dev libbz2-dev libjemalloc-dev libjemalloc1 libzmq3-dev qtbase5-dev qt5-qmake qt5-default
+    apt install -y openssl git build-essential pkg-config zlib1g-dev libbz2-dev libjemalloc-dev libzmq3-dev qtbase5-dev qt5-qmake qt5-default
 
 WORKDIR /src
 
@@ -15,7 +15,7 @@ RUN qmake -makefile PREFIX=/usr FulcrumX.pro && \
 FROM debian:bullseye-slim
 
 RUN apt update && \
-    apt install -y libqt5network5 && \
+    apt install -y openssl libqt5network5 zlib1g libbz2-1.0 libjemalloc2 libzmq5 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 

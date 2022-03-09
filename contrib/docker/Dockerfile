@@ -3,7 +3,7 @@ FROM debian:bullseye as builder
 ARG MAKEFLAGS
 
 RUN apt update -y && \
-    apt install -y openssl git build-essential pkg-config zlib1g-dev libbz2-dev libjemalloc-dev libzmq3-dev qtbase5-dev qt5-qmake qt5-default
+    apt install -y openssl git build-essential pkg-config zlib1g-dev libbz2-dev libjemalloc-dev libzmq3-dev qtbase5-dev qt5-qmake
 
 WORKDIR /src
 

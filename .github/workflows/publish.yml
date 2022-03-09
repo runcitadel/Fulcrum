@@ -27,19 +27,20 @@ jobs:
       - name: Set WORKER_COUNT env
         run: echo "WORKER_COUNT=$(nproc)" >> $GITHUB_ENV
 
-      - name: Login to docker hub
-        uses: docker/login-action@v1.6.0
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1 
         with:
-          username: cculianu
-          password: ${{secrets.DOCKERHUB_PASSWORD}}
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Docker buildx action
+        uses: docker/setup-buildx-action@v1
 
       # If you want support for more platforms you can use our setup-qemu action:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 
-      - name: Create buildx worker node
-        run: docker buildx create --use
-
       - name: Build docker image
-        run: docker buildx build --build-arg MAKEFLAGS="-j ${WORKER_COUNT}" -t cculianu/fulcrum -f contrib/docker/Dockerfile --platform linux/arm64/v8,linux/amd64 --push .
+        run: docker buildx build --build-arg MAKEFLAGS="-j ${WORKER_COUNT}" -t ghcr.io/${{ github.repository_owner }}/FullcrumX -f contrib/docker/Dockerfile --platform linux/arm64/v8,linux/amd64 --push .
 

@@ -14,6 +14,7 @@ All other improvements in FulcrumX will be contributed upstream.
 #### Copyright
 
 (C) 2019-2022 Calin Culianu <calin.culianu@gmail.com>
+
 (C) 2022 Aaron Dewes <aaron.dewes@protonmail.com>
 
 #### License:

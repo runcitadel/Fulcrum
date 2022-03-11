@@ -193,8 +193,7 @@ namespace BTC
         return ret;
     }
     Coin coinFromName(const QString &s) {
-        if (s == coinNameBTC) return Coin::BTC;
-        return Coin::Unknown;
+        return Coin::BTC;
     }
 
 } // end namespace BTC

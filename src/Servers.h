@@ -302,10 +302,6 @@ protected:
     /// QTcpSocket or QSslSocket.  See getter/setter: usesWebSockets and setUsesWebSockets.  Decided by the
     /// "ws" & "wss" config file options and/or the --ws/--wss (-w/-W) CLI args.
     bool usesWS = false;
-
-    /// If true we are on the BTC chain. This is set on construction by querying Storage. Subclasses may use this
-    /// information at runtime to present RPC behavior differences between BTC vs BCH (e.g. in the address_* RPCs).
-    bool isBTC = false;
 };
 
 /// Implements the ElectrumX/ElectronX JSON-RPC protocol, version 1.4.4.
@@ -352,14 +348,6 @@ private:
     void rpc_server_peers_subscribe(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
     void rpc_server_ping(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
     void rpc_server_version(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    // address (resurrected in protocol 1.4.3)
-    void rpc_blockchain_address_get_balance(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    void rpc_blockchain_address_get_history(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    void rpc_blockchain_address_get_mempool(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    void rpc_blockchain_address_get_scripthash(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    void rpc_blockchain_address_listunspent(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    void rpc_blockchain_address_subscribe(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
-    void rpc_blockchain_address_unsubscribe(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
     // blockchain misc
     void rpc_blockchain_block_header(Client *, RPC::BatchId, const RPC::Message &);  // fully implemented
     void rpc_blockchain_block_headers(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
@@ -387,7 +375,7 @@ private:
     // mempool
     void rpc_mempool_get_fee_histogram(Client *, RPC::BatchId, const RPC::Message &); // fully implemented
 
-    // Impl. for blockchain.scripthash.* & blockchain.address.* methods (both sets call into these).
+    // Impl. for blockchain.scripthash.* method.
     // Note: Validation should have already been done by caller.
     void impl_get_balance(Client *, RPC::BatchId, const RPC::Message &, const HashX &scriptHash);
     void impl_get_history(Client *, RPC::BatchId, const RPC::Message &, const HashX &scriptHash);
@@ -396,12 +384,6 @@ private:
     void impl_generic_subscribe(SubsMgr *, Client *, RPC::BatchId, const RPC::Message &, const HashX &key,
                                 const std::optional<QString> & aliasUsedForNotifications = {});
     void impl_generic_unsubscribe(SubsMgr *, Client *, RPC::BatchId, const RPC::Message &, const HashX &key);
-    /// Commonly used by above methods.  Takes the first address argument in the m.paramsList() and converts it to
-    /// a scripthash, returning the raw bytes.  Will throw RPCError on invalid argument.
-    /// It is assumed the caller already ensured m.paramsList() has at least 1 item in it (which the RPC machinery
-    /// does normally if the params spec is correctly written).  Validation is done on the argument, however, and
-    /// it will throw RPCError in all parse/failure cases and only ever returns a valid scripthash on success.
-    HashX parseFirstAddrParamToShCommon(const RPC::Message &m, QString *addrStrOut = nullptr) const;
     /// Commonly used by above methods.  Takes the first hex argument in the m.paramsList() and hes decodes it to
     /// a hash, returning the raw bytes.  Will throw RPCError on invalid argument. The error will be
     /// "Invalid scripthash" unless errMsg is specified, in which case it will be errMsg.

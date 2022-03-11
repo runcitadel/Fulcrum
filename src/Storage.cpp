@@ -2082,12 +2082,6 @@ void Storage::setChain(const QString &chain)
     save(SaveItem::Meta);
 }
 
-QString Storage::getCoin() const
-{
-    SharedLockGuard l(p->metaLock);
-    return p->meta.coin;
-}
-
 void Storage::setCoin(const QString &coin) {
     {
         ExclusiveLockGuard l(p->metaLock);

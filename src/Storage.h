@@ -131,9 +131,6 @@ public:
     QString getChain() const;
     void setChain(const QString &); // implicitly calls db save of 'meta' (thread safe)
 
-    /// Will be one of: "BCH", "BTC" or "" on a newly initialized DB. Note Controller class must use this to match
-    /// the coin with the bitcoind it is connected to.  It sets the Coin via setCoin on first connection to a bitcoind.
-    QString getCoin() const;
     /// Controller calls this the first time it connects to a bitcoind if the current coin is Coin::Unknown in order
     /// to save the Coin to the DB.
     void setCoin(const QString &); // implicitly calls db save of 'meta' (thread safe)

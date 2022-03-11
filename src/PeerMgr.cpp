@@ -81,7 +81,7 @@ void PeerMgr::startup()
         throw InternalError("PeerMgr cannot be started until we have a valid genesis hash! FIXME!");
 
     const auto chain = storage->getChain(); // Note: assumption is that this is always non-empty if PeerMgr was started! (PeerMgr is never started until the db is synched so this is fine)
-    const auto lcaseCoin = storage->getCoin().trimmed().toLower();
+    const auto lcaseCoin = QString("btc");
     const auto pathPrefix = QString(":resources/%1/").arg(lcaseCoin);
     if (const auto net = BTC::NetFromName(chain); !QVector<BTC::Net>{{BTC::Net::TestNet, BTC::Net::MainNet}}.contains(net))
         // can only do peering with testnet or mainnet after they have been defined (no regtest)

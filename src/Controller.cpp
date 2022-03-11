@@ -69,24 +69,9 @@ void Controller::startup()
 
     // check that the coin from DB is known and supported
     {
-        const auto coin = storage->getCoin();
-        const auto ctype = BTC::coinFromName(coin);
-        if (!storage->isNewlyInitialized() && ctype == BTC::Coin::Unknown) {
-            if (!coin.isEmpty()) {
-                // Coin field in DB is unrecognized. Complain.
-                throw InternalError(QString("This database was synched to a bitcoind for the coin \"%1\", yet that coin"
-                                            " is unknown to this version of %2. Please use the version of %2 that was"
-                                            " used to create this database, or specify a different datadir to create"
-                                            " a new database.").arg(coin, QString{APPNAME}));
-            } else {
-                // this should never happen for not-newly-initialized DBs. Indicates programming error in codebase.
-                throw InternalError("Database \"Coin\" field is empty yet the database has data! This should never happen. FIXME!!");
-            }
-        }
         // set the atomic -- this affects how we parse blocks, etc
-        coinType = ctype;
-        if (ctype != BTC::Coin::Unknown)
-            bitcoin::SetCurrencyUnit(coin.toStdString());
+        coinType = BTC::Coin::BTC;
+        bitcoin::SetCurrencyUnit("btc");
     }
 
 
@@ -564,7 +549,7 @@ void DownloadBlocksTask::do_get(unsigned int bnum)
 struct SynchMempoolTask : public CtlTask
 {
     SynchMempoolTask(Controller *ctl_, std::shared_ptr<Storage> storage, const std::atomic_bool & notifyFlag)
-        : CtlTask(ctl_, "SynchMempool"), storage(storage), notifyFlag(notifyFlag), isBTC(ctl_->isCoinBTC())
+        : CtlTask(ctl_, "SynchMempool"), storage(storage), notifyFlag(notifyFlag)
     {
         scriptHashesAffected.reserve(SubsMgr::kRecommendedPendingNotificationsReserveSize);
         txidsAffected.reserve(SubsMgr::kRecommendedPendingNotificationsReserveSize);
@@ -583,7 +568,6 @@ struct SynchMempoolTask : public CtlTask
     static constexpr unsigned kFailedDownloadMax = 50; // if we have more than this many consecutive failures on getrawtransaction, and no successes, abort with error.
     int redoCt = 0;
     const bool TRACE = Trace::isEnabled(); // set this to true to print more debug
-    const bool isBTC; ///< initted in c'tor. If true, deserialize tx's using the optional segwit extensons to the tx format.
 
     /// The scriptHashes that were affected by this refresh/synch cycle. Used for notifications.
     std::unordered_set<HashX, HashHasher> scriptHashesAffected;
@@ -825,7 +809,7 @@ void SynchMempoolTask::doDLNextTx()
         // deserialize tx, catching any deser errors
         bitcoin::CMutableTransaction ctx;
         try {
-            ctx = BTC::Deserialize<bitcoin::CMutableTransaction>(txdata, 0, isBTC);
+            ctx = BTC::Deserialize<bitcoin::CMutableTransaction>(txdata, 0, true);
         } catch (const std::exception &e) {
             Error() << "Error deserializing tx: " << tx->hash.toHex() << ", exception: " << e.what();
             emit errored();
@@ -871,8 +855,7 @@ void SynchMempoolTask::doDLNextTx()
         // that there was some RBF action if on BTC, or the tx happened to drop out of mempool due to mempool pressure.
         // Since bitcoind doesn't have the tx -- then it and its children will also fail, which is fine. It's as if
         // it never existed and as if we never got it in the original list from `getrawmempool`!
-        const auto *const pre = isBTC ? "Tx dropped out of mempool (possibly due to RBF)" : "Tx dropped out of mempool";
-        Warning() << pre << ": " << QString(hashHex) << " (error response: " << resp.errorMessage()
+        Warning() << "Tx dropped out of mempool (possibly due to RBF): " << QString(hashHex) << " (error response: " << resp.errorMessage()
                   << "), ignoring mempool tx ...";
         txsFailedDownload.insert(tx->hash);
         txsWaitingForResponse.erase(tx->hash);
@@ -1569,7 +1552,7 @@ auto Controller::stats() const -> Stats
     const auto tipInfo = storage->latestTip();
     m["Header count"] = tipInfo.first+1;
     m["Chain"] = storage->getChain();
-    m["Coin"] = storage->getCoin();
+    m["Coin"] = "BTC";
     m["Chain tip"] = tipInfo.second.toHex();
     m["UTXO set"] = qlonglong(storage->utxoSetSize());
     m["UTXO set bytes"] = QString::number(storage->utxoSetSizeMB(), 'f', 3) + " MB";

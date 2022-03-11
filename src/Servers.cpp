@@ -365,11 +365,6 @@ ServerBase::ServerBase(SrvMgr *sm,
     if (!options || !storage || !bitcoindmgr)
         // defensive programming
         throw BadArgs("ServerBase cannot be constructed with nullptr arguments!");
-    // setup the isBTC flag -- node that assumption is that storage was aleady setup properly
-    if (const auto coin = BTC::coinFromName(storage->getCoin()); coin == BTC::Coin::Unknown)
-        throw InternalError("ServerBase cannot be constructed without a valid \"Coin\" in the database!");
-    else
-        isBTC = coin == BTC::Coin::BTC;
 }
 ServerBase::~ServerBase() { stop(); }
 
@@ -1310,30 +1305,8 @@ void Server::rpc_blockchain_relayfee(Client *c, const RPC::BatchId batchId, cons
     emit c->sendResult(batchId, m.id, bitcoindmgr->getBitcoinDInfo().relayFee);
 }
 
-// ---- The below two methods are used by both the blockchain.scripthash.* and blockchain.address.* sets of methods
+// ---- The below method is used by the blockchain.scripthash.* set of methods
 //      below for boilerplate checking & parsing.
-HashX Server::parseFirstAddrParamToShCommon(const RPC::Message &m, QString *addrStrOut) const
-{
-    if (isBTC)
-        // unsupported on BTC (for now)
-        throw RPCError("blockchain.address.* methods are not available on BTC", RPC::ErrorCodes::Code_MethodNotFound);
-    const auto net = srvmgr->net();
-    if (UNLIKELY(net == BTC::Net::Invalid))
-        // This should never happen in practice, but it pays to be paranoid.
-        throw RPCError("Server cannot parse addresses at this time", RPC::ErrorCodes::Code_InternalError);
-    constexpr int kAddrLenLimit = 128; // no address is ever really over 64 chars, let alone 128
-    const QVariantList l(m.paramsList());
-    assert(!l.isEmpty());
-    const QString addrStr = l.front().toString().left(kAddrLenLimit).trimmed();
-    const BTC::Address address(addrStr);
-    if (!address.isValid() || !address.isCompatibleWithNet(net))
-        throw RPCError(QString("Invalid address: %1").arg(addrStr));
-    const auto sh = address.toHashX();
-    if (UNLIKELY(sh.length() != HashLen))
-        throw RPCError("Invalid scripthash", RPC::ErrorCodes::Code_InternalError); // this should never happen but we must be defensive here.
-    if (addrStrOut) *addrStrOut = addrStr;
-    return sh;
-}
 HashX Server::parseFirstHashParamCommon(const RPC::Message &m, const char *const errMsg) const
 {
     const QVariantList l(m.paramsList());
@@ -1347,11 +1320,6 @@ HashX Server::parseFirstHashParamCommon(const RPC::Message &m, const char *const
 void Server::rpc_blockchain_scripthash_get_balance(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
 {
     const auto sh = parseFirstHashParamCommon(m);
-    impl_get_balance(c, batchId, m, sh);
-}
-void Server::rpc_blockchain_address_get_balance(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    const auto sh = parseFirstAddrParamToShCommon(m);
     impl_get_balance(c, batchId, m, sh);
 }
 void Server::impl_get_balance(Client *c, const RPC::BatchId batchId, const RPC::Message &m, const HashX &sh)
@@ -1392,11 +1360,6 @@ void Server::rpc_blockchain_scripthash_get_history(Client *c, const RPC::BatchId
     const auto sh = parseFirstHashParamCommon(m);
     impl_get_history(c, batchId, m, sh);
 }
-void Server::rpc_blockchain_address_get_history(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    const auto sh = parseFirstAddrParamToShCommon(m);
-    impl_get_history(c, batchId, m, sh);
-}
 void Server::impl_get_history(Client *c, const RPC::BatchId batchId, const RPC::Message &m, const HashX &sh)
 {
     generic_do_async(c, batchId, m.id, [sh, this] {
@@ -1409,16 +1372,6 @@ void Server::rpc_blockchain_scripthash_get_mempool(Client *c, const RPC::BatchId
     const auto sh = parseFirstHashParamCommon(m);
     impl_get_mempool(c, batchId, m, sh);
 }
-void Server::rpc_blockchain_address_get_mempool(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    const auto sh = parseFirstAddrParamToShCommon(m);
-    impl_get_mempool(c, batchId, m, sh);
-}
-void Server::rpc_blockchain_address_get_scripthash(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    const auto sh = parseFirstAddrParamToShCommon(m);
-    emit c->sendResult(batchId, m.id, Util::ToHexFast(sh));
-}
 void Server::impl_get_mempool(Client *c, const RPC::BatchId batchId, const RPC::Message &m, const HashX &sh)
 {
     generic_do_async(c, batchId, m.id, [sh, this] {
@@ -1428,11 +1381,6 @@ void Server::impl_get_mempool(Client *c, const RPC::BatchId batchId, const RPC::
 void Server::rpc_blockchain_scripthash_listunspent(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
 {
     const auto sh = parseFirstHashParamCommon(m);
-    impl_listunspent(c, batchId, m, sh);
-}
-void Server::rpc_blockchain_address_listunspent(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    const auto sh = parseFirstAddrParamToShCommon(m);
     impl_listunspent(c, batchId, m, sh);
 }
 void Server::impl_listunspent(Client *c, const RPC::BatchId batchId, const RPC::Message &m, const HashX &sh)
@@ -1455,13 +1403,6 @@ void Server::rpc_blockchain_scripthash_subscribe(Client *c, const RPC::BatchId b
 {
     const auto sh = parseFirstHashParamCommon(m);
     impl_generic_subscribe(storage->subs(), c, batchId, m, sh);
-}
-void Server::rpc_blockchain_address_subscribe(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    QString addrStr;
-    const auto sh = parseFirstAddrParamToShCommon(m, &addrStr);
-    assert(!addrStr.isEmpty());
-    impl_generic_subscribe(storage->subs(), c, batchId, m, sh, addrStr);
 }
 void Server::impl_generic_subscribe(SubsMgr *subs, Client *c, const RPC::BatchId batchId, const RPC::Message &m,
                                     const HashX &key, const std::optional<QString> &optAlias)
@@ -1574,11 +1515,6 @@ void Server::impl_generic_subscribe(SubsMgr *subs, Client *c, const RPC::BatchId
 void Server::rpc_blockchain_scripthash_unsubscribe(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
 {
     const auto sh = parseFirstHashParamCommon(m);
-    impl_generic_unsubscribe(storage->subs(), c, batchId, m, sh);
-}
-void Server::rpc_blockchain_address_unsubscribe(Client *c, const RPC::BatchId batchId, const RPC::Message &m)
-{
-    const auto sh = parseFirstAddrParamToShCommon(m);
     impl_generic_unsubscribe(storage->subs(), c, batchId, m, sh);
 }
 void Server::impl_generic_unsubscribe(SubsMgr *subs, Client *c, const RPC::BatchId batchId, const RPC::Message &m, const HashX &key)
@@ -1946,14 +1882,6 @@ HEY_COMPILER_PUT_STATIC_HERE(Server::StaticData::registry){
     { {"server.ping",                       true,               false,    PR{0,0},                    },          MP(rpc_server_ping) },
     { {"server.version",                    true,               false,    PR{0,2},                    },          MP(rpc_server_version) },
 
-    { {"blockchain.address.get_balance",    true,               false,    PR{1,1},                    },          MP(rpc_blockchain_address_get_balance) },
-    { {"blockchain.address.get_history",    true,               false,    PR{1,1},                    },          MP(rpc_blockchain_address_get_history) },
-    { {"blockchain.address.get_mempool",    true,               false,    PR{1,1},                    },          MP(rpc_blockchain_address_get_mempool) },
-    { {"blockchain.address.get_scripthash", true,               false,    PR{1,1},                    },          MP(rpc_blockchain_address_get_scripthash) },
-    { {"blockchain.address.listunspent",    true,               false,    PR{1,1},                    },          MP(rpc_blockchain_address_listunspent) },
-    { {"blockchain.address.subscribe",      true,               false,    PR{1,1},                    },          MP(rpc_blockchain_address_subscribe) },
-    { {"blockchain.address.unsubscribe",    true,               false,    PR{1,1},                    },          MP(rpc_blockchain_address_unsubscribe) },
-
     { {"blockchain.block.header",           true,               false,    PR{1,2},                    },          MP(rpc_blockchain_block_header) },
     { {"blockchain.block.headers",          true,               false,    PR{2,3},                    },          MP(rpc_blockchain_block_headers) },
     { {"blockchain.estimatefee",            true,               false,    PR{1,1},                    },          MP(rpc_blockchain_estimatefee) },
@@ -2305,7 +2233,7 @@ void AdminServer::rpc_getinfo(Client *c, const RPC::BatchId batchId, const RPC::
         res["height"] = opt.has_value() ? *opt : QVariant();
     }
     res["chain"] = storage->getChain();
-    res["coin"] = storage->getCoin();
+    res["coin"] = QString("BTC");
     res["genesis_hash"] = Util::ToHexFast(storage->genesisHash());
     res["pid"] = QCoreApplication::applicationPid();
     res["clients_connected"] = qulonglong(Client::numClients.load());

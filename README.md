@@ -25,29 +25,29 @@ GPLv3. See the included `LICENSE.txt` file or [visit gnu.org and read the licens
 ### Highlights:
 
 - *Fast:* Written in 100% modern `C++17` using multi-threaded and asynchronous programming techniques.
-- *A drop-in replacement for ElectronX/ElectrumX:* Fulcrum is 100% protocol-level compatible with the [Electrum Cash 1.4.5 protocol](https://electrum-cash-protocol.readthedocs.io/en/latest/). Existing server admins should feel right at home with this software since installation and management of it is nearly identical to ElectronX/ElectrumX server.
+- *A drop-in replacement for ElectrumX:* FulcrumX is 100% protocol-level compatible with the [Electrum protocol](https://electrumx.readthedocs.io/en/latest/protocol.html). Existing server admins should feel right at home with this software since installation and management of it is nearly identical to ElectronX/ElectrumX server.
 - *Cross-platform:* While this codebase was mainly developed and tested on MacOS, Windows and Linux, it should theoretically work on any modern OS (such as *BSD) that has Qt5 Core and Qt5 Networking available.
 
 ### Requirements
 
 - *For running*:
   - A supported bitcoin full node with its JSON-RPC service enabled, preferably running on the same machine.
-    - *For **BTC***: Bitcoin Core v0.17.0 or later. Bitcoin Knots is also supported. BTCD has not yet been tested.
+    - Bitcoin Core v0.17.0 or later. Bitcoin Knots is also supported. BTCD has not yet been tested.
     - The node must have txindex enabled e.g. `txindex=1`.
     - The node must not be a pruning node.
-    - *Optional*: For best results, enable zmq for the "hasblock" topic using e.g. `zmqpubhashblock=tcp://0.0.0.0:8433` in your `bitcoin.conf` file (zmq is only available on: Core, BCHN, or BU 1.9.1+).
-  - *Recommended hardware*: Minimum 1GB RAM, 64-bit CPU, ~40GB disk space for mainnet BCH (slightly more for BTC). For best results, use an SSD rather than an HDD.
+    - *Optional*: For best results, enable zmq for the "hasblock" topic using e.g. `zmqpubhashblock=tcp://0.0.0.0:8433` in your `bitcoin.conf` file (zmq is only available on Core).
+  - *Recommended hardware*: Minimum 1GB RAM, 64-bit CPU, ~50GB disk space for mainnet BTC. For best results, use an SSD rather than an HDD.
 - *For compiling*: 
   - `Qt Core` & `Qt Networking` libraries `5.12.5` or above (I use `5.15.2` myself).  Qt `5.12.4` (or earlier) is not supported.
-  - *Optional but recommended*: `libzmq 4.x` development headers and library (also known as `libzmq3-dev` on Debian/Ubuntu and `zeromq-devel` on Fedora). Fulcrum will run just fine without linking against `libzmq`, but it will run better if you do link against `libzmq` and also turn on `zmqpubhashblock` notifications in `bitcoind` (zmq is only available on: Core, BCHN, or BU 1.9.1+).
+  - *Optional but recommended*: `libzmq 4.x` development headers and library (also known as `libzmq3-dev` on Debian/Ubuntu and `zeromq-devel` on Fedora). FulcrumX will run just fine without linking against `libzmq`, but it will run better if you do link against `libzmq` and also turn on `zmqpubhashblock` notifications in `bitcoind` (zmq is only available on Core).
   - A modern, 64-bit `C++17` compiler.  `clang` is recommended but `G++` also works. MSVC on Windows is not supported (please use `MinGW G++` instead, which ships with Qt Open Source Edition for Windows).
 
 ### Quickstart
 
 1. Download a [pre-built static binary](https://github.com/runcitadel/FulcrumX/releases).
-2. Verify that the binary runs on your system by executing the binary with `./Fulcrum -h` to see the CLI options.
-3. Setup a configuration file and to point Fulcrum to your bitcoind JSON-RPC server, specify listening ports, TLS certificates, etc.  See: [doc/fulcrum-example-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-example-config.conf) and/or [doc/fulcrum-quick-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-quick-config.conf)
-4. Also see this section below on [Running Fulcrum](#running-fulcrum).
+2. Verify that the binary runs on your system by executing the binary with `./FulcrumX -h` to see the CLI options.
+3. Setup a configuration file and to point FulcrumX to your bitcoind JSON-RPC server, specify listening ports, TLS certificates, etc.  See: [doc/fulcrum-example-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-example-config.conf) and/or [doc/fulcrum-quick-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-quick-config.conf)
+4. Also see this section below on [Running FulcrumX](#running-fulcrum).
 
 ### How To Compile
 
@@ -70,7 +70,7 @@ You may also build from the CLI (on Linux and MacOS):
 #### What to do if compiling fails
 If you have problems compiling, the most likely culprit would be your compiler not being `C++17` compliant (please use a recent verson of `GCC` or `clang` on Linux, Apple's `Xcode` on Mac, or `MinGW G++ 7.x` on Windows).
 
-The other likely culprit is the fact that at the present time I have included a statically-built `librocksdb` in the codebase. There are versions of this library for Windows, Mac, and Linux included right in the source tree, and `Fulcrum.pro` looks for them and links to them. Instructions are included within the `Fulcrum.pro` project file about how to build your own static `librocksdb` if the bundled one does not work on your system.
+The other likely culprit is the fact that at the present time I have included a statically-built `librocksdb` in the codebase. There are versions of this library for Windows, Mac, and Linux included right in the source tree, and `FulcrumX.pro` looks for them and links to them. Instructions are included within the `FulcrumX.pro` project file about how to build your own static `librocksdb` if the bundled one does not work on your system.
 
 If you are still having trouble, [file an issue here in this github](https://github.com/runcitadel/FulcrumX/issues).
 
@@ -87,7 +87,7 @@ You may optionally build against the **system rocksdb** (Linux only) if your dis
 
 Ensure that `libzmq3` (Debian/Ubuntu) and/or `zeromq-devel` (Fedora/Redhat) is installed, and that `pkg-config` is also installed.  If on Unix (macOS, Linux, or Windows MinGW), then ideally the `qmake` step will find `libzmq` on your system and automatically use it. If that is not the case, you may try passing flags to `qmake` such as `LIBS+="-L/path/to/libdir_containting_libzmq -lzmq"` and `INCLUDEPATH+="/path/to/dir_containing_zmq_h"` as arguments when you invoke `qmake`.  Using `libzmq` is optional but highly recommended. If you have trouble getting Fulcrum to compile against your `libzmq`, [open a new issue](https://github.com/runcitadel/FulcrumX/issues) and maybe I can help.
 
-### Building the Windows static `Fulcrum.exe`
+### Building the Windows static `FulcrumX.exe`
 
 **New!** I recently added a mechanism using Docker to build a statically-linked
 Windows `.exe`. This build is 100% compatible with any stock 64-bit Windows 7 or
@@ -109,7 +109,7 @@ As such, it may take a while so be patient.
 
 The first argument to the script is the platform to build (in this case
 `windows`). The second argument to the script is a git `branch` or `tag` to
-build. Two `.exe` files will be generated, `Fulcrum.exe` and `FulcrumAdmin.exe`,
+build. Two `.exe` files will be generated, `FulcrumX.exe` and `FulcrumAdmin.exe`,
 which will appear in `dist/win` after the build process completes.
 
 - *Note:* You can point the build script to any repository, not just this one, by giving it a `GIT_REPO` environment variable:
@@ -156,7 +156,7 @@ Execute the binary, with `-h` to see the built-in help, e.g. `./FulcrumX -h`. Yo
  - [doc/fulcrum-example-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-example-config.conf) in the source tree. This sample config file is very well documented with comments.
  - [doc/fulcrum-quick-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-quick-config.conf) in the source tree. This is a more abbreviated config file you can use as a starting point as well.
 
-`Fulcrum` requires a `bitcoind` instance running either on `testnet` or `mainnet` (or `regtest` for testing), which you must tell it about via the CLI options or via the config file.  You also need to tell it what port(s) to listen on and optionally what SSL certificates to use (if using SSL).
+`FulcrumX` requires a `bitcoind` instance running either on `testnet` or `mainnet` (or `regtest` for testing), which you must tell it about via the CLI options or via the config file.  You also need to tell it what port(s) to listen on and optionally what SSL certificates to use (if using SSL).
 
 It is recommended you specify a data dir (`-D` via CLI or `datadir=` via config file) on an SSD drive for best results.  Synching against `testnet` should take you about 10-20 minutes (more on slower machines), and mainnet can take anywhere from 4 hours to 20+ hours, depending on machine and drive speed.  I have not tried synching against mainnet on an HDD and it will probably take ***days*** if you are lucky.
 
@@ -167,7 +167,7 @@ You may also wish to read the [FulcrumX manpage](https://github.com/runcitadel/F
 
 #### Admin Script: FulcrumAdmin
 
-`Fulcrum` comes with an admin script (`Python 3.6+` is required on the system to run this script).  You may send commands to `Fulcrum` using this script. The script requires that an **admin port** (config var `admin=`, CLI arg `-a`) be configured for your server.  To run the script, execute `./FulcrumAdmin -h` and you will see a list of possible subcommands that you can send to `Fulcrum`.  Here are two of the most popular commands to try (the below assumes the `admin` port is on port `8000`):
+`FulcrumX` comes with an admin script (`Python 3.6+` is required on the system to run this script).  You may send commands to `FulcrumX` using this script. The script requires that an **admin port** (config var `admin=`, CLI arg `-a`) be configured for your server.  To run the script, execute `./FulcrumAdmin -h` and you will see a list of possible subcommands that you can send to `FulcrumX`.  Here are two of the most popular commands to try (the below assumes the `admin` port is on port `8000`):
 
     $ ./FulcrumAdmin -p 8000 peers
     $ ./FulcrumAdmin -p 8000 clients
@@ -208,6 +208,6 @@ Everything should just work (I use MacOS as my dev machine).
 
 **A:** Yes, I know.  However, Qt is a very robust, cross-platform and fast application framework.  You can use its "Core" library for console apps, servers, etc.  It has great network support and other basic things a programmer needs to get stuff done.
 
-**Q:** Why is the compiled binary called `Fulcrum` (capital `F`) and not `fulcrum` (lowercase `f`) as is customary on Linux/Unix?
+**Q:** Why is the compiled binary called `FulcrumX` (capital `F`) and not `fulcrum` (lowercase `f`) as is customary on Linux/Unix?
 
 **A:** Because I like capital letters, even on Linux.  I also develop (this and other software) for macOS and Windows and over there the Linux/Unix lowecase thing looks a little out-of-place.  Perhaps my sensibilities have been affected by my win32 and macOS dev work, or perhaps I'm just unconventional.  Embrace the lack of convention here! That being said, if the capital `F` bothers you, feel free to rename it or represent it as `fulcrum` wherever you like.

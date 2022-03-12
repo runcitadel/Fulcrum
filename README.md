@@ -42,14 +42,9 @@ GPLv3. See the included `LICENSE.txt` file or [visit gnu.org and read the licens
 ### Quickstart
 
 1. Download a [pre-built static binary](https://github.com/runcitadel/FulcrumX/releases).
-<<<<<<< HEAD
 2. Verify that the binary runs on your system by executing the binary with `./FulcrumX -h` to see the CLI options.
 3. Setup a configuration file and to point Fulcrum to your bitcoind JSON-RPC server, specify listening ports, TLS certificates, etc.  See: [doc/fulcrum-example-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-example-config.conf) and/or [doc/fulcrum-quick-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-quick-config.conf)
 
-=======
-2. Verify that the binary runs on your system by executing the binary with `./Fulcrum -h` to see the CLI options.
-3. Setup a configuration file and to point Fulcrum to your bitcoind JSON-RPC server, specify listening ports, TLS certificates, etc.  See: [doc/fulcrum-example-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-example-config.conf) and/or [doc/fulcrum-quick-config.conf](https://github.com/runcitadel/FulcrumX/blob/master/doc/fulcrum-quick-config.conf)
->>>>>>> c86bf77 (More Bitcoin cash code removed)
 4. Also see this section below on [Running Fulcrum](#running-fulcrum).
 
 ### How To Compile

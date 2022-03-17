@@ -451,12 +451,12 @@ void DownloadBlocksTask::do_get(unsigned int bnum)
         }, msec, Qt::TimerType::PreciseTimer);
         return;
     }
-    submitRequest("getblockbyindex", {var, false}, [this, bnum](const RPC::Message & resp){
+    submitRequest("getblockbyindex", {bnum, false}, [this, bnum](const RPC::Message & resp){
         try {
             auto rawblock = Util::ParseHexFast(resp.result().toByteArray());
             const auto header = rawblock.left(HEADER_SIZE); // we need a deep copy of this anyway so might as well take it now.
             QByteArray chkHash;
-            if (bool sizeOk = header.length() == HEADER_SIZE; sizeOk && (chkHash = BTC::HashRev(header)) == hash) {
+            if (header.length() == HEADER_SIZE) {
                 PreProcessedBlockPtr ppb;
                 try {
                     ppb = PreProcessedBlock::makeShared(bnum, size_t(rawblock.size()),
@@ -513,15 +513,10 @@ void DownloadBlocksTask::do_get(unsigned int bnum)
                     AGAIN();
                     ++q_ct;
                 }
-            } else if (!sizeOk) {
+            } else {
                 Warning() << resp.method << ": at height " << bnum << " header not valid (decoded size: " << header.length() << ")";
                 errorCode = int(bnum);
                 errorMessage = QString("bad size for height %1").arg(bnum);
-                emit errored();
-            } else {
-                Warning() << resp.method << ": at height " << bnum << " header not valid (expected hash: " << hash.toHex() << ", got hash: " << chkHash.toHex() << ")";
-                errorCode = int(bnum);
-                errorMessage = QString("hash mismatch for height %1").arg(bnum);
                 emit errored();
             }
         } catch (const std::exception &e) {
